@@ -23,7 +23,6 @@ const CenteredFlashcard = ({ card, flipped, onFlip, cardIndex, totalCards, onTou
         .map((item) => item.trim())
         .filter(Boolean);
   const explanation = card.short_explanation || card.back || "";
-  const memoryTrick = card.memory_trick || "";
   const hasLayout = Boolean(
     (Array.isArray(card.layout_json) && card.layout_json.length) ||
       (typeof card.layout_json === "string" && card.layout_json.trim().length > 2)
@@ -31,7 +30,7 @@ const CenteredFlashcard = ({ card, flipped, onFlip, cardIndex, totalCards, onTou
 
   return (
     <motion.div
-      key={`${card._id || conceptTitle}-${cardIndex}`}
+      key={`${card._id || card.topic || "card"}-${cardIndex}`}
       initial={{ opacity: 0, y: 20, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
@@ -70,20 +69,13 @@ const CenteredFlashcard = ({ card, flipped, onFlip, cardIndex, totalCards, onTou
         }`}
       >
         <div className="flip-face absolute inset-0 overflow-y-auto p-8 md:p-10">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Concept {cardIndex + 1} of {totalCards}</p>
-          <h2 className="mt-4 font-display text-3xl leading-tight md:text-4xl">{conceptTitle}</h2>
-          <p className="mt-6 max-w-3xl text-lg leading-relaxed text-slate-700 dark:text-slate-200">{definition}</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Front Side</p>
+          <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-700 dark:text-slate-200">{definition}</p>
           {hasLayout ? <ConceptCardLayoutRenderer className="mt-4" layoutJson={card.layout_json} /> : null}
-          <p className="mt-8 text-sm text-slate-500">Click card or press Space to flip</p>
         </div>
 
         <div className="flip-face back absolute inset-0 overflow-y-auto p-8 md:p-10">
           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Key Points + Explanation</p>
-          {memoryTrick ? (
-            <div className="mt-3 inline-flex max-w-full items-center rounded-full border border-emerald-300/70 bg-emerald-100/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.13em] text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-100">
-              Mnemonic: {memoryTrick}
-            </div>
-          ) : null}
           <ul className="mt-4 list-disc space-y-2 pl-6 text-base text-slate-700 dark:text-slate-100 md:text-lg">
             {keyPoints.slice(0, 5).map((point, idx) => (
               <li key={`${idx}-${point}`}>{point}</li>

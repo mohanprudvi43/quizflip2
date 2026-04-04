@@ -576,45 +576,18 @@ const AdminDashboardPage = () => {
             </div>
             {previewCards.map((card, idx) => (
               <article key={`${card.chapterName}-${idx}`} className="rounded-2xl border border-white/60 bg-white/70 p-4 dark:border-slate-600 dark:bg-slate-900/45">
-                <div className="grid gap-2 md:grid-cols-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Subject
-                    <input
-                      className="input-field mt-1"
-                      value={card.subject || ""}
-                      onChange={(e) => updatePreviewCard(idx, "subject", e.target.value)}
-                    />
-                  </label>
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Concept Title
-                    <input
-                      className="input-field mt-1"
-                      value={card.concept_title || card.topic || ""}
-                      onChange={(e) => {
-                        updatePreviewCard(idx, "concept_title", e.target.value);
-                        updatePreviewCard(idx, "topic", e.target.value);
-                      }}
-                    />
-                  </label>
-                </div>
-
-                <div className="grid gap-2 md:grid-cols-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Chapter Name
-                    <input
-                      className="input-field mt-1"
-                      value={card.chapterName || ""}
-                      onChange={(e) => updatePreviewCard(idx, "chapterName", e.target.value)}
-                    />
-                  </label>
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Topic
-                    <input
-                      className="input-field mt-1"
-                      value={card.topic || ""}
-                      onChange={(e) => updatePreviewCard(idx, "topic", e.target.value)}
-                    />
-                  </label>
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <h6 className="font-display text-lg leading-tight">{card.concept_title || card.topic || `Concept ${idx + 1}`}</h6>
+                  {(card.chapterName || card.chapter) ? (
+                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-100">
+                      {card.chapterName || card.chapter}
+                    </span>
+                  ) : null}
+                  {card.subject ? (
+                    <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800 dark:bg-blue-900/40 dark:text-blue-100">
+                      {card.subject}
+                    </span>
+                  ) : null}
                 </div>
 
                 <label className="mt-2 block text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -658,34 +631,6 @@ const AdminDashboardPage = () => {
                     }}
                   />
                 </label>
-
-                <label className="mt-2 block text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  Memory Trick
-                  <textarea
-                    className="input-field mt-1 min-h-20"
-                    value={card.memory_trick || ""}
-                    onChange={(e) => updatePreviewCard(idx, "memory_trick", e.target.value)}
-                  />
-                </label>
-
-                <div className="mt-2 grid gap-2 md:grid-cols-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Front
-                    <textarea
-                      className="input-field mt-1 min-h-20"
-                      value={card.front || ""}
-                      onChange={(e) => updatePreviewCard(idx, "front", e.target.value)}
-                    />
-                  </label>
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Back
-                    <textarea
-                      className="input-field mt-1 min-h-20"
-                      value={card.back || ""}
-                      onChange={(e) => updatePreviewCard(idx, "back", e.target.value)}
-                    />
-                  </label>
-                </div>
               </article>
             ))}
           </div>

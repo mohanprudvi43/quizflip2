@@ -29,6 +29,9 @@ const FlashcardLearningPage = () => {
   }, [domainId]);
 
   const current = cards[index];
+  const conceptTitle = current?.concept_title || current?.topic || "Untitled concept";
+  const chapterName = current?.chapter || current?.chapterName || "";
+  const subjectName = current?.subject || "";
 
   const pct = useMemo(() => {
     if (!cards.length) return 0;
@@ -141,6 +144,29 @@ const FlashcardLearningPage = () => {
         </div>
 
         <div className="relative mx-auto w-full max-w-[860px]">
+          {current ? (
+            <div className="mb-3 w-full rounded-2xl border border-white/70 bg-white/70 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/60">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-display text-2xl leading-tight md:text-3xl">{conceptTitle}</h2>
+                <span className="rounded-full border border-slate-300/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-600 dark:border-slate-600 dark:text-slate-200">
+                  Concept {index + 1} / {cards.length}
+                </span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {subjectName ? (
+                  <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800 dark:bg-blue-900/40 dark:text-blue-100">
+                    {subjectName}
+                  </span>
+                ) : null}
+                {chapterName ? (
+                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-100">
+                    {chapterName}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
           <CenteredFlashcard
             card={current}
             flipped={flipped}
@@ -171,7 +197,7 @@ const FlashcardLearningPage = () => {
             <ArrowLeft className="h-4 w-4" /> Previous
           </button>
           <p className="hidden text-xs uppercase tracking-[0.16em] text-slate-500 md:block">
-            Keyboard: left/right arrows, space to flip
+            Keyboard: left/right arrows
           </p>
           <button type="button" onClick={next} className="btn-primary gap-2 px-5 py-3">
             Next <ArrowRight className="h-4 w-4" />

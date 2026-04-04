@@ -38,6 +38,13 @@ const normalizeElement = (element, idx) => {
     normalized.text = String(element.text || "Text");
     normalized.fontSize = Math.max(10, toNumber(element.fontSize, 24));
     normalized.fontFamily = String(element.fontFamily || "Sora");
+    normalized.align = ["left", "center", "right"].includes(String(element.align || "")) ? String(element.align) : "left";
+    normalized.verticalAlign = ["top", "middle", "bottom"].includes(String(element.verticalAlign || ""))
+      ? String(element.verticalAlign)
+      : "top";
+    normalized.lineHeight = Math.max(0.6, toNumber(element.lineHeight, 1.2));
+    normalized.letterSpacing = toNumber(element.letterSpacing, 0);
+    normalized.padding = Math.max(0, toNumber(element.padding, 0));
   }
 
   if (type === "image") {
@@ -86,6 +93,12 @@ const ConceptCardLayoutRenderer = ({ layoutJson, className = "" }) => {
         };
 
         if (element.type === "text") {
+          const justifyContent =
+            element.verticalAlign === "middle"
+              ? "center"
+              : element.verticalAlign === "bottom"
+                ? "flex-end"
+                : "flex-start";
           return (
             <p
               key={element.id}
@@ -95,8 +108,15 @@ const ConceptCardLayoutRenderer = ({ layoutJson, className = "" }) => {
                 fontSize: toNumber(element.fontSize, 24),
                 fontFamily: element.fontFamily || "Sora",
                 fontWeight: 700,
-                lineHeight: 1.2,
-                whiteSpace: "pre-wrap"
+                lineHeight: toNumber(element.lineHeight, 1.2),
+                letterSpacing: toNumber(element.letterSpacing, 0),
+                padding: toNumber(element.padding, 0),
+                textAlign: element.align || "left",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent,
+                whiteSpace: "pre-wrap",
+                boxSizing: "border-box"
               }}
             >
               {element.text || "Text"}

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Layer, Rect, Stage, Text as KonvaText, Arrow as KonvaArrow, Image as KonvaImage, Transformer } from "react-konva";
+import { Layer, Line as KonvaLine, Rect, Stage, Text as KonvaText, Arrow as KonvaArrow, Image as KonvaImage, Transformer } from "react-konva";
 import useImage from "use-image";
 
 const CANVAS_WIDTH = 840;
 const CANVAS_HEIGHT = 480;
+const MAX_NUDGE_STEP = 200;
+const MAX_GRID_SIZE = 80;
 
 const makeId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
@@ -19,6 +21,8 @@ const defaultCard = {
 };
 
 const clampSize = (value, min = 20) => Math.max(min, Number(value) || min);
+const clampNumber = (value, min, max) => Math.max(min, Math.min(max, Number(value) || min));
+const snapValue = (value, step) => Math.round(value / step) * step;
 
 const MAX_IMAGE_DIMENSION = 1400;
 const MAX_IMAGE_BYTES = 900 * 1024;
@@ -167,6 +171,14 @@ const ConceptCardVisualEditor = ({
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isCanvasDragOver, setIsCanvasDragOver] = useState(false);
+  const [newTextValue, setNewTextValue] = useState("Type here");
+  const [newTextFontSize, setNewTextFontSize] = useState(30);
+  const [newTextFontFamily, setNewTextFontFamily] = useState("Sora");
+  const [newTextColor, setNewTextColor] = useState("#0f172a");
+  const [nudgeStep, setNudgeStep] = useState(8);
+  const [snapToGrid, setSnapToGrid] = useState(true);
+  const [gridSize, setGridSize] = useState(16);
+  const [showGuides, setShowGuides] = useState(true);
   const [textDraft, setTextDraft] = useState("");
   const [inlineEditor, setInlineEditor] = useState(null);
   const [inlineEditorText, setInlineEditorText] = useState("");
@@ -203,6 +215,28 @@ const ConceptCardVisualEditor = ({
   }, [initialCard]);
 
   const selectedElement = useMemo(() => elements.find((el) => el.id === selectedId) || null, [elements, selectedId]);
+  const guideLines = useMemo(() => {
+    if (!showGuides || !selectedElement) return { vertical: [], horizontal: [] };
+
+    const centerX = Number(selectedElement.x || 0) + Number(selectedElement.width || 0) / 2;
+    const centerY = Number(selectedElement.y || 0) + Number(selectedElement.height || 0) / 2;
+    const vertical = [];
+    const horizontal = [];
+
+    if (Math.abs(centerX - CANVAS_WIDTH / 2) <= 6) vertical.push(CANVAS_WIDTH / 2);
+    if (Math.abs(Number(selectedElement.x || 0)) <= 6) vertical.push(0);
+    if (Math.abs(Number(selectedElement.x || 0) + Number(selectedElement.width || 0) - CANVAS_WIDTH) <= 6) {
+      vertical.push(CANVAS_WIDTH);
+    }
+
+    if (Math.abs(centerY - CANVAS_HEIGHT / 2) <= 6) horizontal.push(CANVAS_HEIGHT / 2);
+    if (Math.abs(Number(selectedElement.y || 0)) <= 6) horizontal.push(0);
+    if (Math.abs(Number(selectedElement.y || 0) + Number(selectedElement.height || 0) - CANVAS_HEIGHT) <= 6) {
+      horizontal.push(CANVAS_HEIGHT);
+    }
+
+    return { vertical, horizontal };
+  }, [selectedElement, showGuides]);
 
   useEffect(() => {
     if (selectedElement?.type === "text") {
@@ -281,6 +315,42 @@ const ConceptCardVisualEditor = ({
     addImageFromSrc(src);
   };
 
+  const addTextElement = ({
+    text = newTextValue,
+    fontSize = newTextFontSize,
+    fontFamily = newTextFontFamily,
+    fill = newTextColor
+  } = {}) => {
+    const cleanText = String(text || "").trim() || "New Text";
+    const safeFontSize = clampSize(fontSize, 10);
+    const width = Math.min(420, Math.max(180, cleanText.length * Math.max(8, Math.round(safeFontSize * 0.5))));
+    const height = Math.max(48, Math.round(safeFontSize * 1.8));
+
+    const element = {
+      id: makeId(),
+      type: "text",
+      x: Math.max(10, Math.round((CANVAS_WIDTH - width) / 2)),
+      y: Math.max(10, Math.round((CANVAS_HEIGHT - height) / 2)),
+      width,
+      height,
+      rotation: 0,
+      text: cleanText,
+      fontSize: safeFontSize,
+      fontFamily: fontFamily || "Sora",
+      align: "left",
+      verticalAlign: "top",
+      lineHeight: 1.2,
+      letterSpacing: 0,
+      padding: 6,
+      fill: fill || "#0f172a",
+      stroke: "#2563eb"
+    };
+
+    const next = [...elements, element];
+    commitElements(next);
+    setSelectedId(element.id);
+  };
+
   const addElement = (type) => {
     const base = {
       id: makeId(),
@@ -296,7 +366,8 @@ const ConceptCardVisualEditor = ({
 
     let element = base;
     if (type === "text") {
-      element = { ...base, text: "New Text", width: 240, height: 48, fontSize: 30, fontFamily: "Sora", fill: "#0f172a" };
+      addTextElement();
+      return;
     }
 
     if (type === "shape") {
@@ -325,6 +396,27 @@ const ConceptCardVisualEditor = ({
       return;
     }
     setElements(next);
+  };
+
+  const getSnappedPosition = (x, y, elementWidth = 120, elementHeight = 80) => {
+    const safeGrid = clampNumber(gridSize, 4, MAX_GRID_SIZE);
+    const nextX = snapToGrid ? snapValue(Number(x || 0), safeGrid) : Number(x || 0);
+    const nextY = snapToGrid ? snapValue(Number(y || 0), safeGrid) : Number(y || 0);
+
+    return {
+      x: clampNumber(nextX, 0, Math.max(0, CANVAS_WIDTH - Number(elementWidth || 0))),
+      y: clampNumber(nextY, 0, Math.max(0, CANVAS_HEIGHT - Number(elementHeight || 0)))
+    };
+  };
+
+  const handleElementDragEnd = (element, event) => {
+    const pos = getSnappedPosition(
+      event.target.x(),
+      event.target.y(),
+      Number(element.width || 120),
+      Number(element.height || 80)
+    );
+    updateElement(element.id, pos);
   };
 
   const onTransformEnd = () => {
@@ -389,6 +481,49 @@ const ConceptCardVisualEditor = ({
     }
 
     commitElements(next);
+  };
+
+  const moveSelectedBy = (dx, dy) => {
+    if (!selectedElement) return;
+    updateElement(selectedElement.id, {
+      ...getSnappedPosition(
+        Number(selectedElement.x || 0) + dx,
+        Number(selectedElement.y || 0) + dy,
+        Number(selectedElement.width || 120),
+        Number(selectedElement.height || 80)
+      )
+    });
+  };
+
+  const alignSelected = (direction) => {
+    if (!selectedElement) return;
+
+    const width = Number(selectedElement.width || 120);
+    const height = Number(selectedElement.height || 80);
+
+    if (direction === "left") {
+      updateElement(selectedElement.id, { x: 0 });
+      return;
+    }
+    if (direction === "center") {
+      updateElement(selectedElement.id, { x: Math.max(0, Math.round((CANVAS_WIDTH - width) / 2)) });
+      return;
+    }
+    if (direction === "right") {
+      updateElement(selectedElement.id, { x: Math.max(0, CANVAS_WIDTH - width) });
+      return;
+    }
+    if (direction === "top") {
+      updateElement(selectedElement.id, { y: 0 });
+      return;
+    }
+    if (direction === "middle") {
+      updateElement(selectedElement.id, { y: Math.max(0, Math.round((CANVAS_HEIGHT - height) / 2)) });
+      return;
+    }
+    if (direction === "bottom") {
+      updateElement(selectedElement.id, { y: Math.max(0, CANVAS_HEIGHT - height) });
+    }
   };
 
   const updateMeta = (key, value) => {
@@ -489,6 +624,34 @@ const ConceptCardVisualEditor = ({
     commitElements(next);
   };
 
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (!selectedElement) return;
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName || "")) return;
+
+      const step = event.shiftKey ? Math.min(MAX_NUDGE_STEP, nudgeStep * 2) : nudgeStep;
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        moveSelectedBy(0, -step);
+      }
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        moveSelectedBy(0, step);
+      }
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        moveSelectedBy(-step, 0);
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        moveSelectedBy(step, 0);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedElement, nudgeStep]);
+
   return (
     <section className="panel mt-4">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -529,7 +692,42 @@ const ConceptCardVisualEditor = ({
       <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)_280px]">
         <aside className="space-y-2 rounded-2xl border border-white/60 bg-white/70 p-3 dark:border-slate-700 dark:bg-slate-900/50">
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Elements</p>
-          <ToolButton label="Add Text" onClick={() => addElement("text")} />
+          <div className="space-y-2 rounded-xl border border-blue-200/70 bg-blue-50/60 p-2 dark:border-blue-900/50 dark:bg-blue-950/20">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Text Composer</p>
+            <textarea
+              className="input-field min-h-20"
+              value={newTextValue}
+              onChange={(e) => setNewTextValue(e.target.value)}
+              placeholder="Write text to place on card..."
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <select className="input-field" value={newTextFontFamily} onChange={(e) => setNewTextFontFamily(e.target.value)}>
+                <option value="Sora">Sora</option>
+                <option value="Plus Jakarta Sans">Plus Jakarta Sans</option>
+                <option value="Georgia">Georgia</option>
+                <option value="Courier New">Courier New</option>
+              </select>
+              <input
+                className="input-field"
+                type="number"
+                value={newTextFontSize}
+                onChange={(e) => setNewTextFontSize(clampSize(e.target.value, 10))}
+                placeholder="Font size"
+              />
+            </div>
+            <label className="text-xs font-semibold text-slate-500">
+              Text Color
+              <input
+                type="color"
+                className="mt-1 h-9 w-full rounded-lg"
+                value={newTextColor}
+                onChange={(e) => setNewTextColor(e.target.value)}
+              />
+            </label>
+            <button type="button" className="btn-secondary w-full justify-start" onClick={() => addTextElement()}>
+              Add Text To Canvas
+            </button>
+          </div>
           <ToolButton label="Add Image" onClick={() => addElement("image")} />
           <label className="btn-secondary w-full cursor-pointer justify-start">
             Upload Image
@@ -584,6 +782,58 @@ const ConceptCardVisualEditor = ({
             }}
           >
             <Layer>
+              {snapToGrid
+                ? Array.from({ length: Math.floor(CANVAS_WIDTH / gridSize) + 1 }).map((_, idx) => {
+                    const x = idx * gridSize;
+                    return (
+                      <KonvaLine
+                        key={`grid-v-${x}`}
+                        points={[x, 0, x, CANVAS_HEIGHT]}
+                        stroke="#cbd5e1"
+                        strokeWidth={0.5}
+                        dash={[2, 8]}
+                        listening={false}
+                      />
+                    );
+                  })
+                : null}
+              {snapToGrid
+                ? Array.from({ length: Math.floor(CANVAS_HEIGHT / gridSize) + 1 }).map((_, idx) => {
+                    const y = idx * gridSize;
+                    return (
+                      <KonvaLine
+                        key={`grid-h-${y}`}
+                        points={[0, y, CANVAS_WIDTH, y]}
+                        stroke="#cbd5e1"
+                        strokeWidth={0.5}
+                        dash={[2, 8]}
+                        listening={false}
+                      />
+                    );
+                  })
+                : null}
+
+              {guideLines.vertical.map((x) => (
+                <KonvaLine
+                  key={`guide-v-${x}`}
+                  points={[x, 0, x, CANVAS_HEIGHT]}
+                  stroke="#3b82f6"
+                  strokeWidth={1}
+                  dash={[6, 6]}
+                  listening={false}
+                />
+              ))}
+              {guideLines.horizontal.map((y) => (
+                <KonvaLine
+                  key={`guide-h-${y}`}
+                  points={[0, y, CANVAS_WIDTH, y]}
+                  stroke="#3b82f6"
+                  strokeWidth={1}
+                  dash={[6, 6]}
+                  listening={false}
+                />
+              ))}
+
               {elements.map((element) => {
                 if (element.type === "text") {
                   return (
@@ -597,6 +847,11 @@ const ConceptCardVisualEditor = ({
                       text={element.text || "Text"}
                       fontSize={element.fontSize || 28}
                       fontFamily={element.fontFamily || "Sora"}
+                      align={element.align || "left"}
+                      verticalAlign={element.verticalAlign || "top"}
+                      lineHeight={Number(element.lineHeight) || 1.2}
+                      letterSpacing={Number(element.letterSpacing) || 0}
+                      padding={Number(element.padding) || 0}
                       fill={element.fill || "#0f172a"}
                       width={element.width}
                       height={element.height}
@@ -606,7 +861,7 @@ const ConceptCardVisualEditor = ({
                       onTap={() => setSelectedId(element.id)}
                       onDblClick={() => openInlineEditor(element)}
                       onDblTap={() => openInlineEditor(element)}
-                      onDragEnd={(e) => updateElement(element.id, { x: e.target.x(), y: e.target.y() })}
+                      onDragEnd={(e) => handleElementDragEnd(element, e)}
                     />
                   );
                 }
@@ -630,7 +885,7 @@ const ConceptCardVisualEditor = ({
                       draggable
                       onClick={() => setSelectedId(element.id)}
                       onTap={() => setSelectedId(element.id)}
-                      onDragEnd={(e) => updateElement(element.id, { x: e.target.x(), y: e.target.y() })}
+                      onDragEnd={(e) => handleElementDragEnd(element, e)}
                     />
                   );
                 }
@@ -654,7 +909,7 @@ const ConceptCardVisualEditor = ({
                       draggable
                       onClick={() => setSelectedId(element.id)}
                       onTap={() => setSelectedId(element.id)}
-                      onDragEnd={(e) => updateElement(element.id, { x: e.target.x(), y: e.target.y() })}
+                      onDragEnd={(e) => handleElementDragEnd(element, e)}
                     />
                   );
                 }
@@ -665,7 +920,7 @@ const ConceptCardVisualEditor = ({
                       key={element.id}
                       element={element}
                       onSelect={() => setSelectedId(element.id)}
-                      onDragEnd={(e) => updateElement(element.id, { x: e.target.x(), y: e.target.y() })}
+                      onDragEnd={(e) => handleElementDragEnd(element, e)}
                       nodeRef={(node) => {
                         if (node) nodeRefs.current[element.id] = node;
                       }}
@@ -734,7 +989,6 @@ const ConceptCardVisualEditor = ({
             onChange={(e) => updateMeta("key_points", e.target.value.split(/\r?\n/).filter(Boolean))}
           />
           <textarea className="input-field min-h-20" placeholder="Short explanation" value={cardMeta.short_explanation} onChange={(e) => updateMeta("short_explanation", e.target.value)} />
-          <input className="input-field" placeholder="Memory trick" value={cardMeta.memory_trick} onChange={(e) => updateMeta("memory_trick", e.target.value)} />
 
           <p className="pt-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Selected Element</p>
           {selectedElement ? (
@@ -744,6 +998,55 @@ const ConceptCardVisualEditor = ({
                 <button type="button" className="btn-secondary" onClick={() => moveSelectedLayer("down")}>Layer -</button>
                 <button type="button" className="btn-secondary" onClick={() => moveSelectedLayer("front")}>To Front</button>
                 <button type="button" className="btn-secondary" onClick={() => moveSelectedLayer("back")}>To Back</button>
+              </div>
+              <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-2 dark:border-slate-700 dark:bg-slate-900/40">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Move & Align</p>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  <button type="button" className="btn-secondary text-xs" onClick={() => alignSelected("left")}>Left</button>
+                  <button type="button" className="btn-secondary text-xs" onClick={() => alignSelected("center")}>Center</button>
+                  <button type="button" className="btn-secondary text-xs" onClick={() => alignSelected("right")}>Right</button>
+                  <button type="button" className="btn-secondary text-xs" onClick={() => alignSelected("top")}>Top</button>
+                  <button type="button" className="btn-secondary text-xs" onClick={() => alignSelected("middle")}>Middle</button>
+                  <button type="button" className="btn-secondary text-xs" onClick={() => alignSelected("bottom")}>Bottom</button>
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  <span />
+                  <button type="button" className="btn-secondary text-xs" onClick={() => moveSelectedBy(0, -nudgeStep)}>Up</button>
+                  <span />
+                  <button type="button" className="btn-secondary text-xs" onClick={() => moveSelectedBy(-nudgeStep, 0)}>Left</button>
+                  <button type="button" className="btn-secondary text-xs" onClick={() => moveSelectedBy(0, nudgeStep)}>Down</button>
+                  <button type="button" className="btn-secondary text-xs" onClick={() => moveSelectedBy(nudgeStep, 0)}>Right</button>
+                </div>
+                <label className="mt-2 block text-xs font-semibold text-slate-500">
+                  Nudge Step (px)
+                  <input
+                    className="input-field mt-1"
+                    type="number"
+                    min={1}
+                    max={MAX_NUDGE_STEP}
+                    value={nudgeStep}
+                    onChange={(e) => setNudgeStep(Math.max(1, Math.min(MAX_NUDGE_STEP, Number(e.target.value) || 1)))}
+                  />
+                </label>
+                <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  <input type="checkbox" checked={snapToGrid} onChange={(e) => setSnapToGrid(e.target.checked)} />
+                  Snap to grid
+                </label>
+                <label className="mt-2 block text-xs font-semibold text-slate-500">
+                  Grid Size (px)
+                  <input
+                    className="input-field mt-1"
+                    type="number"
+                    min={4}
+                    max={MAX_GRID_SIZE}
+                    value={gridSize}
+                    onChange={(e) => setGridSize(clampNumber(e.target.value, 4, MAX_GRID_SIZE))}
+                  />
+                </label>
+                <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  <input type="checkbox" checked={showGuides} onChange={(e) => setShowGuides(e.target.checked)} />
+                  Show smart guides
+                </label>
               </div>
               {selectedElement.type === "text" ? (
                 <div className="space-y-2 rounded-xl border border-blue-200/70 bg-blue-50/60 p-2 dark:border-blue-900/50 dark:bg-blue-950/20">
@@ -777,6 +1080,56 @@ const ConceptCardVisualEditor = ({
                       onChange={(e) => updateElement(selectedElement.id, { fontSize: clampSize(e.target.value, 10) }, { recordHistory: false })}
                       onBlur={commitCurrentSnapshot}
                       placeholder="Font size"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      className="input-field"
+                      value={selectedElement.align || "left"}
+                      onChange={(e) => updateElement(selectedElement.id, { align: e.target.value }, { recordHistory: false })}
+                      onBlur={commitCurrentSnapshot}
+                    >
+                      <option value="left">Align Left</option>
+                      <option value="center">Align Center</option>
+                      <option value="right">Align Right</option>
+                    </select>
+                    <select
+                      className="input-field"
+                      value={selectedElement.verticalAlign || "top"}
+                      onChange={(e) => updateElement(selectedElement.id, { verticalAlign: e.target.value }, { recordHistory: false })}
+                      onBlur={commitCurrentSnapshot}
+                    >
+                      <option value="top">Vertical Top</option>
+                      <option value="middle">Vertical Middle</option>
+                      <option value="bottom">Vertical Bottom</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      className="input-field"
+                      type="number"
+                      step="0.1"
+                      value={selectedElement.lineHeight || 1.2}
+                      onChange={(e) => updateElement(selectedElement.id, { lineHeight: Math.max(0.6, Number(e.target.value) || 1.2) }, { recordHistory: false })}
+                      onBlur={commitCurrentSnapshot}
+                      placeholder="Line H"
+                    />
+                    <input
+                      className="input-field"
+                      type="number"
+                      step="0.2"
+                      value={selectedElement.letterSpacing || 0}
+                      onChange={(e) => updateElement(selectedElement.id, { letterSpacing: Number(e.target.value) || 0 }, { recordHistory: false })}
+                      onBlur={commitCurrentSnapshot}
+                      placeholder="Letter"
+                    />
+                    <input
+                      className="input-field"
+                      type="number"
+                      value={selectedElement.padding || 0}
+                      onChange={(e) => updateElement(selectedElement.id, { padding: Math.max(0, Number(e.target.value) || 0) }, { recordHistory: false })}
+                      onBlur={commitCurrentSnapshot}
+                      placeholder="Padding"
                     />
                   </div>
                 </div>

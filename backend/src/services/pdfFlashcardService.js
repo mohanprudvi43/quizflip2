@@ -308,17 +308,6 @@ const buildShortExplanation = (definition, keyPoints) => {
   return explanation;
 };
 
-const buildMemoryTrick = (conceptTitle, keyPoints) => {
-  const words = conceptTitle.match(/[A-Za-z][A-Za-z0-9]*/g) || [];
-  if (words.length < 2) return "";
-
-  const acronym = words.map((word) => word[0].toUpperCase()).join("");
-  if (acronym.length < 2) return "";
-
-  const clue = toShortPhrase(keyPoints[0] || conceptTitle, 5);
-  return `${acronym}: ${clue}`;
-};
-
 const normalizeConceptCardShape = ({
   card,
   domainId,
@@ -357,7 +346,6 @@ const normalizeConceptCardShape = ({
     normalizeLine(card?.diagram || card?.diagramText || "") ||
     [conceptTitle, ...keyPoints.slice(0, 3).map((point) => toShortPhrase(point, 5))].join("\n↓\n");
 
-  const memoryTrick = normalizeLine(card?.memory_trick || buildMemoryTrick(conceptTitle, keyPoints));
   const subject = normalizeLine(card?.subject || subjectFallback || "General");
 
   return {
@@ -369,14 +357,14 @@ const normalizeConceptCardShape = ({
     key_points: keyPoints,
     short_explanation: shortExplanation,
     diagram,
-    memory_trick: memoryTrick,
+    memory_trick: "",
     topic: conceptTitle,
     chapterName,
     keyPoints,
     diagramText: diagram,
     diagramUrl: "",
-    front: `${conceptTitle}: What is the core definition?`,
-    back: `${definition || buildDefinition(keyPoints)} ${shortExplanation}`.trim(),
+    front: "",
+    back: "",
     mcqOptions: [definition || keyPoints[0], keyPoints[1], "Related supporting detail", "Distractor concept"].filter(
       Boolean
     ).slice(0, 4),
@@ -434,7 +422,6 @@ const buildCardFromSection = (section, domainId, createdBy, index, domainKeyword
 
   const generatedDiagram = extractDiagramHint(section.lines, normalizedKeyPoints);
   const diagram = generatedDiagram || [conceptTitle, ...normalizedKeyPoints.slice(0, 3).map((point) => toShortPhrase(point, 5))].join("\n↓\n");
-  const memoryTrick = buildMemoryTrick(conceptTitle, normalizedKeyPoints);
 
   const answer = definition;
   const options = [
@@ -453,14 +440,14 @@ const buildCardFromSection = (section, domainId, createdBy, index, domainKeyword
     key_points: normalizedKeyPoints,
     short_explanation: shortExplanation,
     diagram,
-    memory_trick: memoryTrick,
+    memory_trick: "",
     topic: conceptTitle,
     chapterName,
     keyPoints: normalizedKeyPoints,
     diagramText: diagram,
     diagramUrl: "",
-    front: `${conceptTitle}: What is the core definition?`,
-    back: `${definition} ${shortExplanation}`.trim(),
+    front: "",
+    back: "",
     mcqOptions: options,
     answer,
     createdBy

@@ -50,6 +50,13 @@ const normalizeLayoutJson = (layoutValue) => {
         normalized.text = String(raw.text || "Text");
         normalized.fontSize = Math.max(10, toNumber(raw.fontSize, 24));
         normalized.fontFamily = String(raw.fontFamily || "Sora");
+        normalized.align = ["left", "center", "right"].includes(String(raw.align || "")) ? String(raw.align) : "left";
+        normalized.verticalAlign = ["top", "middle", "bottom"].includes(String(raw.verticalAlign || ""))
+          ? String(raw.verticalAlign)
+          : "top";
+        normalized.lineHeight = Math.max(0.6, toNumber(raw.lineHeight, 1.2));
+        normalized.letterSpacing = toNumber(raw.letterSpacing, 0);
+        normalized.padding = Math.max(0, toNumber(raw.padding, 0));
       }
 
       if (type === "image") {
@@ -98,13 +105,10 @@ const buildPreviewCards = (cards) =>
     key_points: card.key_points,
     short_explanation: card.short_explanation,
     diagram: card.diagram,
-    memory_trick: card.memory_trick,
     chapterName: card.chapterName,
     topic: card.topic,
     keyPoints: card.keyPoints,
-    diagramText: card.diagramText,
-    front: card.front,
-    back: card.back
+    diagramText: card.diagramText
   }));
 
 const normalizeCardInput = (card, domainId, createdBy) => {
@@ -131,15 +135,15 @@ const normalizeCardInput = (card, domainId, createdBy) => {
     key_points: keyPoints,
     short_explanation: shortExplanation,
     diagram: String(card.diagram || card.diagramText || "").trim(),
-    memory_trick: String(card.memory_trick || "").trim(),
+    memory_trick: "",
     layout_json: normalizeLayoutJson(card.layout_json),
     topic: conceptTitle,
     chapterName,
     keyPoints,
     diagramText: String(card.diagramText || card.diagram || "").trim(),
     diagramUrl: String(card.diagramUrl || "").trim(),
-    front: String(card.front || `${conceptTitle}: What is the core definition?`).trim(),
-    back: String(card.back || `${definition} ${shortExplanation}`.trim() || keyPoints.join("; ")).trim(),
+    front: "",
+    back: "",
     mcqOptions: Array.isArray(card.mcqOptions)
       ? card.mcqOptions.map((option) => String(option || "").trim()).filter(Boolean).slice(0, 4)
       : [],
@@ -335,7 +339,7 @@ export const saveEditedDomainFlashcardsAsAdmin = async (req, res, next) => {
 
     const normalized = cards
       .map((card) => normalizeCardInput(card, domainId, req.user._id))
-      .filter((card) => card.front && card.back && card.answer);
+      .filter((card) => card.answer && card.topic);
 
     if (!normalized.length) {
       return res.status(400).json({ message: "No valid cards to save" });
