@@ -5,6 +5,8 @@ import api from "../services/api.js";
 
 const difficultyList = ["Hard", "Medium", "Easy"];
 
+const normalizeAnswer = (value = "") => String(value).trim().toLowerCase().replace(/\s+/g, " ");
+
 const QuizPage = () => {
   const domainId = localStorage.getItem("qf_domain");
   const [quiz, setQuiz] = useState(null);
@@ -50,7 +52,7 @@ const QuizPage = () => {
 
   const next = async () => {
     if (!q) return;
-    const isCorrect = value.trim().toLowerCase() === q.answer.trim().toLowerCase();
+    const isCorrect = normalizeAnswer(value) === normalizeAnswer(q.answer);
     const record = {
       flashcardId: q.flashcardId,
       questionType: q.type,

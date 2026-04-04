@@ -5,7 +5,10 @@ import {
 	getAdminDashboard,
 	seedDomainFlashcardsAsAdmin,
 	generateDomainFlashcardsFromPdfAsAdmin,
-	saveEditedDomainFlashcardsAsAdmin
+	saveEditedDomainFlashcardsAsAdmin,
+	generateDomainFlashcardsFromTextAsAdmin,
+	listDomainConceptCardQuizAsAdmin,
+	updateConceptCardQuizAsAdmin
 } from "../controllers/adminController.js";
 
 const router = Router();
@@ -37,6 +40,12 @@ router.post(
 	generateDomainFlashcardsFromPdfAsAdmin
 );
 router.post(
+	"/domains/:domainId/conceptcards/generate-text",
+	protect,
+	authorize("admin"),
+	generateDomainFlashcardsFromTextAsAdmin
+);
+router.post(
 	"/domains/:domainId/flashcards/save-generated",
 	protect,
 	authorize("admin"),
@@ -47,6 +56,18 @@ router.post(
 	protect,
 	authorize("admin"),
 	saveEditedDomainFlashcardsAsAdmin
+);
+router.get(
+	"/domains/:domainId/conceptcards/quiz",
+	protect,
+	authorize("admin"),
+	listDomainConceptCardQuizAsAdmin
+);
+router.put(
+	"/conceptcards/:cardId/quiz",
+	protect,
+	authorize("admin"),
+	updateConceptCardQuizAsAdmin
 );
 
 export default router;

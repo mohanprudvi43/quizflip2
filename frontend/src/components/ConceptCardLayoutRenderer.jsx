@@ -12,6 +12,43 @@ const normalizeLayout = (layoutJson) => {
   return [];
 };
 
+const toNumber = (value, fallback) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+const normalizeElement = (element, idx) => {
+  if (!element || typeof element !== "object") return null;
+  const type = String(element.type || "").trim();
+  if (!["text", "image", "shape", "arrow"].includes(type)) return null;
+
+  const normalized = {
+    id: String(element.id || `layout-${idx}`),
+    type,
+    x: toNumber(element.x, 0),
+    y: toNumber(element.y, 0),
+    width: Math.max(20, toNumber(element.width, type === "text" ? 180 : 120)),
+    height: Math.max(20, toNumber(element.height, type === "text" ? 40 : 80)),
+    rotation: toNumber(element.rotation, 0),
+    fill: String(element.fill || (type === "shape" ? "#60a5fa" : "#0f172a")),
+    stroke: String(element.stroke || "#2563eb")
+  };
+
+  if (type === "text") {
+    normalized.text = String(element.text || "Text");
+    normalized.fontSize = Math.max(10, toNumber(element.fontSize, 24));
+    normalized.fontFamily = String(element.fontFamily || "Sora");
+  }
+
+  if (type === "image") {
+    const src = String(element.src || "").trim();
+    if (!src) return null;
+    normalized.src = src;
+  }
+
+  return normalized;
+};
+
 const ArrowElement = ({ element }) => {
   const width = Math.max(20, Number(element.width) || 140);
   const height = Math.max(20, Number(element.height) || 40);
@@ -30,7 +67,7 @@ const ArrowElement = ({ element }) => {
 };
 
 const ConceptCardLayoutRenderer = ({ layoutJson, className = "" }) => {
-  const elements = normalizeLayout(layoutJson);
+  const elements = normalizeLayout(layoutJson).map((element, idx) => normalizeElement(element, idx)).filter(Boolean);
 
   if (!elements.length) {
     return null;
@@ -41,11 +78,11 @@ const ConceptCardLayoutRenderer = ({ layoutJson, className = "" }) => {
       {elements.map((element) => {
         const commonStyle = {
           position: "absolute",
-          left: Number(element.x) || 0,
-          top: Number(element.y) || 0,
-          width: Number(element.width) || (element.type === "text" ? 180 : 120),
-          height: Number(element.height) || (element.type === "text" ? 40 : 80),
-          transform: `rotate(${Number(element.rotation) || 0}deg)`
+          left: toNumber(element.x, 0),
+          top: toNumber(element.y, 0),
+          width: toNumber(element.width, element.type === "text" ? 180 : 120),
+          height: toNumber(element.height, element.type === "text" ? 40 : 80),
+          transform: `rotate(${toNumber(element.rotation, 0)}deg)`
         };
 
         if (element.type === "text") {
@@ -55,7 +92,7 @@ const ConceptCardLayoutRenderer = ({ layoutJson, className = "" }) => {
               style={{
                 ...commonStyle,
                 color: element.fill || "#0f172a",
-                fontSize: Number(element.fontSize) || 24,
+                fontSize: toNumber(element.fontSize, 24),
                 fontFamily: element.fontFamily || "Sora",
                 fontWeight: 700,
                 lineHeight: 1.2,

@@ -467,18 +467,13 @@ const buildCardFromSection = (section, domainId, createdBy, index, domainKeyword
   };
 };
 
-export const generateFlashcardsFromPdf = async ({ fileBuffer, domainId, createdBy, domainName = "" }) => {
-  if (typeof PDFParse !== "function") {
-    const error = new Error("PDF parser is not available in current runtime");
-    error.status = 500;
-    throw error;
-  }
-
-  const parser = new PDFParse({ data: fileBuffer });
-  const parsed = await parser.getText();
-  await parser.destroy();
-
-  const rawText = String(parsed.text || "");
+const deriveFlashcardsFromRawText = async ({
+  rawText,
+  domainId,
+  createdBy,
+  domainName = "",
+  totalPages = 0
+}) => {
   const cleanedLines = rawText
     .split(/\r?\n/)
     .map(normalizeLine)
@@ -558,9 +553,40 @@ export const generateFlashcardsFromPdf = async ({ fileBuffer, domainId, createdB
   return {
     cards,
     stats: {
-      totalPages: parsed.total || parsed.numpages || 0,
+      totalPages,
       totalSections: sections.length,
       generatedCards: cards.length
     }
   };
+};
+
+export const generateFlashcardsFromPdf = async ({ fileBuffer, domainId, createdBy, domainName = "" }) => {
+  if (typeof PDFParse !== "function") {
+    const error = new Error("PDF parser is not available in current runtime");
+    error.status = 500;
+    throw error;
+  }
+
+  const parser = new PDFParse({ data: fileBuffer });
+  const parsed = await parser.getText();
+  await parser.destroy();
+
+  return deriveFlashcardsFromRawText({
+    rawText: String(parsed.text || ""),
+    domainId,
+    createdBy,
+    domainName,
+    totalPages: parsed.total || parsed.numpages || 0
+  });
+};
+
+export const generateFlashcardsFromText = async ({ text, domainId, createdBy, domainName = "" }) => {
+  const rawText = String(text || "");
+  return deriveFlashcardsFromRawText({
+    rawText,
+    domainId,
+    createdBy,
+    domainName,
+    totalPages: 1
+  });
 };

@@ -41,6 +41,12 @@ const AdminDashboardPage = () => {
   const [savingEdited, setSavingEdited] = useState(false);
   const [savingVisual, setSavingVisual] = useState(false);
   const [visualOverwrite, setVisualOverwrite] = useState(false);
+  const [rawConceptText, setRawConceptText] = useState("");
+  const [textGenerating, setTextGenerating] = useState(false);
+  const [quizCards, setQuizCards] = useState([]);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [quizSavingCardId, setQuizSavingCardId] = useState("");
+  const [quizFilter, setQuizFilter] = useState("");
   const [uploadResult, setUploadResult] = useState(null);
   const [previewCards, setPreviewCards] = useState([]);
   const [uploadError, setUploadError] = useState("");
@@ -207,6 +213,96 @@ const AdminDashboardPage = () => {
       setUploadError(error.response?.data?.message || "Could not upload PDF.");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const generateFromText = async (mode = "preview") => {
+    if (!selectedDomain) {
+      setUploadError("Select a domain first.");
+      return;
+    }
+    if (rawConceptText.trim().length < 120) {
+      setUploadError("Paste more notes text (at least 120 characters).");
+      return;
+    }
+
+    setTextGenerating(true);
+    setUploadError("");
+    setUploadResult(null);
+    if (mode === "preview") {
+      setPreviewCards([]);
+    }
+
+    try {
+      const { data: res } = await api.post(
+        `/admin/domains/${selectedDomain}/conceptcards/generate-text?overwrite=${overwrite ? "true" : "false"}&preview=${
+          mode === "preview" ? "true" : "false"
+        }`,
+        {
+          text: rawConceptText,
+          overwrite,
+          preview: mode === "preview"
+        }
+      );
+
+      if (mode === "preview") {
+        setPreviewCards(Array.isArray(res.cards) ? res.cards : []);
+        setUploadResult({
+          message: res.message,
+          domain: res.domain,
+          inserted: 0,
+          stats: res.stats
+        });
+      } else {
+        setUploadResult(res);
+      }
+    } catch (error) {
+      setUploadError(error.response?.data?.message || "Could not generate cards from text.");
+    } finally {
+      setTextGenerating(false);
+    }
+  };
+
+  const loadQuizCards = async () => {
+    if (!selectedDomain) return;
+
+    setQuizLoading(true);
+    setUploadError("");
+    try {
+      const { data: res } = await api.get(`/admin/domains/${selectedDomain}/conceptcards/quiz`);
+      setQuizCards(Array.isArray(res.cards) ? res.cards : []);
+    } catch (error) {
+      setUploadError(error.response?.data?.message || "Could not load quiz cards.");
+    } finally {
+      setQuizLoading(false);
+    }
+  };
+
+  const updateQuizCard = (cardId, updater) => {
+    setQuizCards((prev) =>
+      prev.map((card) => {
+        if (String(card._id) !== String(cardId)) return card;
+        const authoredQuiz = updater(card.authoredQuiz || {});
+        return { ...card, authoredQuiz };
+      })
+    );
+  };
+
+  const saveQuizCard = async (cardId) => {
+    const card = quizCards.find((item) => String(item._id) === String(cardId));
+    if (!card) return;
+
+    setQuizSavingCardId(String(cardId));
+    setUploadError("");
+
+    try {
+      await api.put(`/admin/conceptcards/${cardId}/quiz`, {
+        authoredQuiz: card.authoredQuiz
+      });
+    } catch (error) {
+      setUploadError(error.response?.data?.message || "Could not save quiz configuration.");
+    } finally {
+      setQuizSavingCardId("");
     }
   };
 
@@ -594,6 +690,167 @@ const AdminDashboardPage = () => {
             ))}
           </div>
         ) : null}
+      </section>
+
+      <section className="panel">
+        <h4 className="section-title">Generate ConceptCards From Notes Text</h4>
+        <p className="mt-1 text-sm text-slate-500">
+          Paste short notes or chapter points. You can preview, edit, and save generated concept cards.
+        </p>
+
+        <label className="mt-3 block text-sm font-semibold">
+          Notes Text
+          <textarea
+            className="input-field mt-1 min-h-40"
+            placeholder="Paste chapter notes, bullets, or topic explanation text here..."
+            value={rawConceptText}
+            onChange={(e) => setRawConceptText(e.target.value)}
+          />
+        </label>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button className="btn-secondary" type="button" onClick={() => generateFromText("preview")} disabled={textGenerating}>
+            {textGenerating ? "Working..." : "Preview From Text"}
+          </button>
+          <button className="btn-primary" type="button" onClick={() => generateFromText("generate")} disabled={textGenerating}>
+            {textGenerating ? "Generating..." : "Save Generated From Text"}
+          </button>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h4 className="section-title">Quiz For ConceptCards</h4>
+            <p className="mt-1 text-sm text-slate-500">
+              Separate add/edit for quiz question, options, and answer mapped to each concept card.
+            </p>
+          </div>
+          <button className="btn-secondary" type="button" onClick={loadQuizCards} disabled={quizLoading || !selectedDomain}>
+            {quizLoading ? "Loading..." : "Load ConceptCards"}
+          </button>
+        </div>
+
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <label className="text-sm font-semibold">
+            Filter Concepts
+            <input
+              className="input-field mt-1"
+              value={quizFilter}
+              onChange={(e) => setQuizFilter(e.target.value)}
+              placeholder="Search by concept or chapter"
+            />
+          </label>
+          <div className="text-xs text-slate-500 md:pt-7">
+            Loaded cards: {quizCards.length}
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-4">
+          {quizCards
+            .filter((card) => {
+              const haystack = `${card.concept_title || ""} ${card.topic || ""} ${card.chapterName || ""}`.toLowerCase();
+              return haystack.includes(quizFilter.trim().toLowerCase());
+            })
+            .map((card) => {
+              const authored = card.authoredQuiz || { enabled: false, type: "mcq", prompt: "", options: [], answer: "" };
+              const options = Array.isArray(authored.options) ? authored.options : [];
+              const paddedOptions = [...options, "", "", ""].slice(0, 4);
+
+              return (
+                <article key={String(card._id)} className="rounded-2xl border border-white/60 bg-white/70 p-4 dark:border-slate-600 dark:bg-slate-900/45">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.14em] text-slate-500">{card.chapterName || "Chapter"}</p>
+                      <h5 className="font-display text-xl">{card.concept_title || card.topic}</h5>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(authored.enabled)}
+                        onChange={(e) =>
+                          updateQuizCard(card._id, (prev) => ({ ...prev, enabled: e.target.checked }))
+                        }
+                      />
+                      Enable manual quiz
+                    </label>
+                  </div>
+
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Question Type
+                      <select
+                        className="input-field mt-1"
+                        value={authored.type || "mcq"}
+                        onChange={(e) =>
+                          updateQuizCard(card._id, (prev) => ({ ...prev, type: e.target.value }))
+                        }
+                      >
+                        <option value="mcq">MCQ</option>
+                        <option value="fill_blank">Fill Blank</option>
+                      </select>
+                    </label>
+                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Correct Answer
+                      <input
+                        className="input-field mt-1"
+                        value={authored.answer || ""}
+                        onChange={(e) =>
+                          updateQuizCard(card._id, (prev) => ({ ...prev, answer: e.target.value }))
+                        }
+                        placeholder="Correct answer"
+                      />
+                    </label>
+                  </div>
+
+                  <label className="mt-3 block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Prompt
+                    <textarea
+                      className="input-field mt-1 min-h-16"
+                      value={authored.prompt || ""}
+                      onChange={(e) =>
+                        updateQuizCard(card._id, (prev) => ({ ...prev, prompt: e.target.value }))
+                      }
+                      placeholder="Write the quiz question"
+                    />
+                  </label>
+
+                  {authored.type !== "fill_blank" ? (
+                    <div className="mt-3 grid gap-2 md:grid-cols-2">
+                      {paddedOptions.map((option, optionIndex) => (
+                        <label key={`${card._id}-opt-${optionIndex}`} className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                          Option {optionIndex + 1}
+                          <input
+                            className="input-field mt-1"
+                            value={option}
+                            onChange={(e) =>
+                              updateQuizCard(card._id, (prev) => {
+                                const nextOptions = [...(Array.isArray(prev.options) ? prev.options : [])];
+                                nextOptions[optionIndex] = e.target.value;
+                                return { ...prev, options: nextOptions.slice(0, 4) };
+                              })
+                            }
+                            placeholder={`Option ${optionIndex + 1}`}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      className="btn-primary"
+                      type="button"
+                      onClick={() => saveQuizCard(card._id)}
+                      disabled={quizSavingCardId === String(card._id)}
+                    >
+                      {quizSavingCardId === String(card._id) ? "Saving..." : "Save Quiz"}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+        </div>
       </section>
 
       <ConceptCardVisualEditor

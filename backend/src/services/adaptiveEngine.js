@@ -1,6 +1,57 @@
 import { CONFIDENCE } from "../config/constants.js";
 
+const normalizeValue = (value = "") => String(value).trim().toLowerCase().replace(/\s+/g, " ");
+
+const uniqueOptions = (items = []) => {
+  const seen = new Set();
+  const out = [];
+
+  items.forEach((item) => {
+    const text = String(item || "").trim();
+    if (!text) return;
+    const key = normalizeValue(text);
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(text);
+  });
+
+  return out;
+};
+
+const buildFallbackOptions = (flashcard, answer) => {
+  const keyPoints = Array.isArray(flashcard.keyPoints) ? flashcard.keyPoints : [];
+  const definitionParts = String(flashcard.definition || "")
+    .split(/[.;]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const candidates = uniqueOptions([
+    ...keyPoints,
+    ...definitionParts,
+    flashcard.back,
+    flashcard.short_explanation,
+    `A common confusion with ${flashcard.topic || "this concept"}`,
+    `An incomplete statement about ${flashcard.chapterName || flashcard.topic || "the chapter"}`
+  ]).filter((item) => normalizeValue(item) !== normalizeValue(answer));
+
+  return uniqueOptions([answer, ...candidates]).slice(0, 4);
+};
+
 export const buildQuestionFromFlashcard = (flashcard, index = 0) => {
+  const authored = flashcard.authoredQuiz || {};
+  if (authored.enabled && authored.prompt && authored.answer) {
+    const authoredType = authored.type === "fill_blank" ? "fill_blank" : "mcq";
+    const authoredOptions = authoredType === "mcq" ? uniqueOptions(authored.options || []).slice(0, 4) : [];
+    return {
+      flashcardId: flashcard._id,
+      type: authoredType,
+      prompt: authored.prompt,
+      options: authoredOptions,
+      answer: authored.answer,
+      topic: flashcard.topic
+    };
+  }
+
   const chapter = flashcard.chapterName || flashcard.topic;
   const keyPoint =
     Array.isArray(flashcard.keyPoints) && flashcard.keyPoints.length
@@ -9,13 +60,13 @@ export const buildQuestionFromFlashcard = (flashcard, index = 0) => {
   const isMcq = index % 2 === 0;
   if (isMcq) {
     const options = flashcard.mcqOptions?.length
-      ? flashcard.mcqOptions
-      : [keyPoint, "Core definition", "Optional concept", "Extended example"];
+      ? uniqueOptions(flashcard.mcqOptions).slice(0, 4)
+      : buildFallbackOptions(flashcard, keyPoint);
 
     return {
       flashcardId: flashcard._id,
       type: "mcq",
-      prompt: `In chapter \"${chapter}\", which key point is correct?`,
+      prompt: `Which statement is most accurate about ${flashcard.topic || "this concept"} in ${chapter}?`,
       options,
       answer: keyPoint,
       topic: flashcard.topic
@@ -25,7 +76,7 @@ export const buildQuestionFromFlashcard = (flashcard, index = 0) => {
   return {
     flashcardId: flashcard._id,
     type: "fill_blank",
-    prompt: `Chapter \"${chapter}\": one key point is ____`,
+    prompt: `Complete the key idea from ${chapter}: ____`,
     options: [],
     answer: keyPoint,
     topic: flashcard.topic

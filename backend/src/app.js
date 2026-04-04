@@ -12,6 +12,8 @@ import { notFound, errorHandler } from "./middleware/error.js";
 
 export const app = express();
 
+const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || "50mb";
+
 const splitCsvOrigins = (value = "") =>
   String(value)
     .split(",")
@@ -50,7 +52,8 @@ app.use(
     credentials: true
   })
 );
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: requestBodyLimit }));
+app.use(express.urlencoded({ extended: true, limit: requestBodyLimit }));
 app.use(cookieParser());
 app.use(morgan("dev"));
 

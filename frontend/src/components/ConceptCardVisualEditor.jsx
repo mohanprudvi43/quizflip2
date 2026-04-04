@@ -20,6 +20,10 @@ const defaultCard = {
 
 const clampSize = (value, min = 20) => Math.max(min, Number(value) || min);
 
+const MAX_IMAGE_DIMENSION = 1400;
+const MAX_IMAGE_BYTES = 900 * 1024;
+const MAX_LAYOUT_PAYLOAD_BYTES = 2 * 1024 * 1024;
+
 const loadFrom = (value) => {
   if (!value) return [];
   if (Array.isArray(value)) return value;
@@ -32,6 +36,93 @@ const loadFrom = (value) => {
     }
   }
   return [];
+};
+
+const loadImageElement = (src) =>
+  new Promise((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Could not load image"));
+    image.src = src;
+  });
+
+const readFileAsDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Could not read image file"));
+    reader.readAsDataURL(file);
+  });
+
+const compressImageFile = async (file) => {
+  const raw = await readFileAsDataUrl(file);
+  const source = await loadImageElement(raw);
+
+  const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(source.width || 1, source.height || 1));
+  const width = Math.max(1, Math.round(source.width * scale));
+  const height = Math.max(1, Math.round(source.height * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return raw;
+  }
+
+  ctx.drawImage(source, 0, 0, width, height);
+
+  let quality = 0.82;
+  let result = canvas.toDataURL("image/jpeg", quality);
+  while (result.length > MAX_IMAGE_BYTES && quality > 0.42) {
+    quality -= 0.08;
+    result = canvas.toDataURL("image/jpeg", quality);
+  }
+
+  return result;
+};
+
+const estimateBytes = (value) => new Blob([value]).size;
+
+const compressDataUrlImage = async (src) => {
+  if (!src || !String(src).startsWith("data:image/")) return src;
+
+  const source = await loadImageElement(src);
+  const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(source.width || 1, source.height || 1));
+  const width = Math.max(1, Math.round(source.width * scale));
+  const height = Math.max(1, Math.round(source.height * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return src;
+
+  ctx.drawImage(source, 0, 0, width, height);
+
+  let quality = 0.82;
+  let result = canvas.toDataURL("image/jpeg", quality);
+  while (estimateBytes(result) > MAX_IMAGE_BYTES && quality > 0.3) {
+    quality -= 0.08;
+    result = canvas.toDataURL("image/jpeg", quality);
+  }
+
+  return result;
+};
+
+const normalizeLayoutImages = async (layout = []) => {
+  const next = [];
+  for (const element of layout) {
+    if (element?.type === "image" && element?.src && String(element.src).startsWith("data:image/")) {
+      const compressedSrc = await compressDataUrlImage(element.src);
+      next.push({ ...element, src: compressedSrc });
+      continue;
+    }
+    next.push(element);
+  }
+  return next;
 };
 
 const CanvasImageNode = ({ element, onSelect, onDragEnd, nodeRef }) => {
@@ -162,14 +253,6 @@ const ConceptCardVisualEditor = ({
     setHistoryIndex((prev) => Math.min(prev + 1, 49));
   };
 
-  const readImageFileAsDataUrl = (file) =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.onerror = () => reject(new Error("Could not read image file"));
-      reader.readAsDataURL(file);
-    });
-
   const addImageFromSrc = (src) => {
     if (!src) return;
 
@@ -194,7 +277,7 @@ const ConceptCardVisualEditor = ({
   const onUploadImage = async (file) => {
     if (!file || !file.type.startsWith("image/")) return;
 
-    const src = await readImageFileAsDataUrl(file);
+    const src = await compressImageFile(file);
     addImageFromSrc(src);
   };
 
@@ -312,18 +395,20 @@ const ConceptCardVisualEditor = ({
     setCardMeta((prev) => ({ ...prev, [key]: value }));
   };
 
-  const saveCard = () => {
+  const saveCard = async () => {
     if (!selectedDomain) {
       window.alert("Please select a domain before saving this visual concept card.");
       return;
     }
+
+    const normalizedLayout = await normalizeLayoutImages(elements);
 
     const payload = {
       ...cardMeta,
       domainId: selectedDomain,
       overwrite: overwriteExisting,
       key_points: cardMeta.key_points.filter((point) => String(point || "").trim()),
-      layout_json: elements,
+      layout_json: normalizedLayout,
       diagram: "",
       diagramText: "",
       front: `${cardMeta.concept_title || "Concept"}: What is the core definition?`,
@@ -333,6 +418,12 @@ const ConceptCardVisualEditor = ({
       answer: cardMeta.definition || cardMeta.concept_title || "Concept",
       mcqOptions: []
     };
+
+    const payloadBytes = estimateBytes(JSON.stringify(payload));
+    if (payloadBytes > MAX_LAYOUT_PAYLOAD_BYTES) {
+      window.alert("This card is still too large to save. Reduce image dimensions or use fewer images.");
+      return;
+    }
 
     onSave(payload);
   };
