@@ -347,7 +347,11 @@ export const saveEditedDomainFlashcardsAsAdmin = async (req, res, next) => {
       return res.status(400).json({ message: "No valid cards to save. Add concept title or definition." });
     }
 
-    if (String(overwrite) === "true" || overwrite === true) {
+    const overwriteRequested = String(overwrite) === "true" || overwrite === true;
+    // Safety: avoid accidental full-domain replacement when UI sends a single card payload.
+    const shouldOverwrite = overwriteRequested && normalized.length > 1;
+
+    if (shouldOverwrite) {
       await Flashcard.deleteMany({ domainId });
     }
 
@@ -356,7 +360,9 @@ export const saveEditedDomainFlashcardsAsAdmin = async (req, res, next) => {
     return res.status(201).json({
       message: "Edited flashcards saved",
       domain: { id: domain._id, name: domain.name },
-      inserted: docs.length
+      inserted: docs.length,
+      overwriteApplied: shouldOverwrite,
+      overwriteSkippedSingleCard: overwriteRequested && !shouldOverwrite
     });
   } catch (error) {
     return next(error);
