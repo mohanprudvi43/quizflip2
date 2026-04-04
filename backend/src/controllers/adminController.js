@@ -124,21 +124,23 @@ const normalizeCardInput = (card, domainId, createdBy) => {
   const chapterName = String(card.chapterName || card.chapter || conceptTitle).trim();
   const definition = String(card.definition || keyPoints[0] || card.answer || "").trim();
   const shortExplanation = String(card.short_explanation || card.back || "").trim();
-  const answer = String(card.answer || definition || keyPoints[0] || card.back || "").trim();
+  const answer = String(card.answer || definition || keyPoints[0] || conceptTitle || "Core Concept").trim();
+  const normalizedTopic = conceptTitle || "Core Concept";
+  const normalizedChapter = chapterName || normalizedTopic;
 
   return {
     domainId,
     subject: String(card.subject || "").trim(),
-    chapter: chapterName,
-    concept_title: conceptTitle,
+    chapter: normalizedChapter,
+    concept_title: normalizedTopic,
     definition,
     key_points: keyPoints,
     short_explanation: shortExplanation,
     diagram: String(card.diagram || card.diagramText || "").trim(),
     memory_trick: "",
     layout_json: normalizeLayoutJson(card.layout_json),
-    topic: conceptTitle,
-    chapterName,
+    topic: normalizedTopic,
+    chapterName: normalizedChapter,
     keyPoints,
     diagramText: String(card.diagramText || card.diagram || "").trim(),
     diagramUrl: String(card.diagramUrl || "").trim(),
@@ -342,7 +344,7 @@ export const saveEditedDomainFlashcardsAsAdmin = async (req, res, next) => {
       .filter((card) => card.answer && card.topic);
 
     if (!normalized.length) {
-      return res.status(400).json({ message: "No valid cards to save" });
+      return res.status(400).json({ message: "No valid cards to save. Add concept title or definition." });
     }
 
     if (String(overwrite) === "true" || overwrite === true) {
