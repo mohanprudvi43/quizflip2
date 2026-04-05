@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 
 const learnerLinks = [
   ["/domains", "Domains"],
+  ["/create-cards", "Create Cards"],
   ["/learn", "Flashcards"],
   ["/quiz", "Quiz"],
   ["/practice", "Practice"],
@@ -11,7 +12,11 @@ const learnerLinks = [
   ["/leaderboard", "Leaderboard"]
 ];
 
-const adminLinks = [["/admin", "Admin Dashboard"]];
+const adminLinks = [
+  ["/admin", "Admin Dashboard"],
+  ["/create-cards", "Create Cards"],
+  ["/domains", "Domains"]
+];
 
 const Sidebar = () => {
   const { user } = useAuth();

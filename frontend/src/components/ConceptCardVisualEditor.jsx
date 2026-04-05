@@ -540,6 +540,7 @@ const ConceptCardVisualEditor = ({
 
     const payload = {
       ...cardMeta,
+      ...(initialCard?._id ? { _id: initialCard._id } : {}),
       domainId: selectedDomain,
       overwrite: overwriteExisting,
       key_points: cardMeta.key_points.filter((point) => String(point || "").trim()),

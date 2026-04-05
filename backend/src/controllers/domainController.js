@@ -118,7 +118,15 @@ export const uploadFlashcards = async (req, res, next) => {
 export const listFlashcardsByDomain = async (req, res, next) => {
   try {
     const { domainId } = req.params;
-    const flashcards = await Flashcard.find({ domainId }).sort({ createdAt: 1 });
+    const query =
+      req.user?.role === "admin"
+        ? { domainId }
+        : {
+            domainId,
+            $or: [{ visibility: { $ne: "private" } }, { createdBy: req.user._id }]
+          };
+
+    const flashcards = await Flashcard.find(query).sort({ createdAt: 1 });
     return res.json(flashcards);
   } catch (error) {
     return next(error);

@@ -23,6 +23,11 @@ const DomainSelectionPage = () => {
     navigate("/learn");
   };
 
+  const openConceptCards = (domainId) => {
+    localStorage.setItem("qf_domain", domainId);
+    navigate(`/domains/${domainId}/create-cards`);
+  };
+
   return (
     <AppShell>
       <section className="panel">
@@ -35,10 +40,8 @@ const DomainSelectionPage = () => {
         {loading
           ? Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton h-44 rounded-2xl" />)
           : domains.map((d) => (
-              <button
-                type="button"
+              <article
                 key={d._id}
-                onClick={() => selectDomain(d._id)}
                 className="panel group relative overflow-hidden text-left transition hover:-translate-y-1"
               >
                 <div className="pointer-events-none absolute right-0 top-0 h-20 w-20 rounded-full bg-gradient-to-br from-blue-400/25 to-cyan-300/10 blur-xl" />
@@ -48,7 +51,16 @@ const DomainSelectionPage = () => {
                 <div className="mt-4 h-1 rounded bg-blue-100 dark:bg-slate-700">
                   <div className="h-1 w-0 rounded bg-blue-600 transition-all group-hover:w-full" />
                 </div>
-              </button>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button type="button" className="btn-primary" onClick={() => selectDomain(d._id)}>
+                    Start Learning
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => openConceptCards(d._id)}>
+                    Create Concept Cards
+                  </button>
+                </div>
+              </article>
             ))}
       </section>
     </AppShell>

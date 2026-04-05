@@ -33,9 +33,12 @@ const flashcardSchema = new mongoose.Schema(
     mcqOptions: [{ type: String }],
     answer: { type: String, required: true },
     authoredQuiz: { type: authoredQuizSchema, default: () => ({ enabled: false, type: "mcq", options: [] }) },
+    visibility: { type: String, enum: ["domain", "private"], default: "domain" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }
   },
   { timestamps: true }
 );
+
+flashcardSchema.index({ domainId: 1, visibility: 1, createdBy: 1, createdAt: -1 });
 
 export default mongoose.model("Flashcard", flashcardSchema);

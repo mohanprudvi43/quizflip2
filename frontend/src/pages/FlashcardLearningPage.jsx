@@ -121,6 +121,15 @@ const FlashcardLearningPage = () => {
           <div className="mb-2 flex items-center justify-between text-sm">
             <span className="text-slate-500">Learning Progress</span>
             <div className="flex items-center gap-2">
+              {domainId ? (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/domains/${domainId}/create-cards`)}
+                  className="btn-secondary px-3 py-1.5 text-xs"
+                >
+                  Create Cards
+                </button>
+              ) : null}
               <span className="font-semibold">{progress || pct}%</span>
               <button
                 type="button"

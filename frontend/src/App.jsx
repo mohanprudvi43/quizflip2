@@ -13,6 +13,7 @@ const StreakCalendarPage = lazy(() => import("./pages/StreakCalendarPage.jsx"));
 const LeaderboardPage = lazy(() => import("./pages/LeaderboardPage.jsx"));
 const AdminDashboardPage = lazy(() => import("./pages/AdminDashboardPage.jsx"));
 const PracticePage = lazy(() => import("./pages/PracticePage.jsx"));
+const LearnerConceptCardsPage = lazy(() => import("./pages/LearnerConceptCardsPage.jsx"));
 
 const App = () => {
   useEffect(() => {
@@ -42,6 +43,22 @@ const App = () => {
         element={
           <ProtectedRoute>
             <FlashcardLearningPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/domains/:domainId/create-cards"
+        element={
+          <ProtectedRoute>
+            <LearnerConceptCardsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/create-cards"
+        element={
+          <ProtectedRoute>
+            <LearnerConceptCardsPage />
           </ProtectedRoute>
         }
       />

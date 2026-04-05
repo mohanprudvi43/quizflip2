@@ -6,7 +6,12 @@ import {
   generateQuiz,
   submitQuiz,
   getProgressByDomain,
-  getStreakCalendar
+  getStreakCalendar,
+  listMyConceptCardsByDomain,
+  saveMyConceptCardsByDomain,
+  deleteMyConceptCard,
+  listMyConceptCardQuizByDomain,
+  updateMyConceptCardQuiz
 } from "../controllers/learnerController.js";
 
 const router = Router();
@@ -19,5 +24,10 @@ router.post("/quiz/generate", generateQuiz);
 router.post("/quiz/submit", submitQuiz);
 router.get("/progress/:domainId", getProgressByDomain);
 router.get("/streak", getStreakCalendar);
+router.get("/domains/:domainId/conceptcards", listMyConceptCardsByDomain);
+router.post("/domains/:domainId/conceptcards/save-generated", saveMyConceptCardsByDomain);
+router.delete("/conceptcards/:cardId", deleteMyConceptCard);
+router.get("/domains/:domainId/conceptcards/quiz", listMyConceptCardQuizByDomain);
+router.put("/conceptcards/:cardId/quiz", updateMyConceptCardQuiz);
 
 export default router;

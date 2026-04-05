@@ -15,6 +15,7 @@ import {
 
 const learnerLinks = [
   { to: "/domains", label: "Domains", icon: BookOpen },
+  { to: "/create-cards", label: "Create Cards", icon: PenLine },
   { to: "/learn", label: "ConceptCards", icon: Brain },
   { to: "/quiz", label: "Quiz", icon: PenLine },
   { to: "/practice", label: "Practice", icon: LayoutDashboard },
@@ -24,7 +25,8 @@ const learnerLinks = [
 ];
 
 const adminLinks = [
-  { to: "/admin", label: "Admin Dashboard", icon: Crown }
+  { to: "/admin", label: "Admin Dashboard", icon: Crown },
+  { to: "/create-cards", label: "Create Cards", icon: PenLine }
 ];
 
 const NavItem = ({ link, collapsed, onNavigate }) => {

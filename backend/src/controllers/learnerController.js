@@ -10,6 +10,154 @@ import {
   scoreWeakTopics
 } from "../services/adaptiveEngine.js";
 
+const MAX_LAYOUT_BYTES = 2 * 1024 * 1024;
+
+const toNumber = (value, fallback) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+const normalizeLayoutJson = (layoutValue) => {
+  const parsed =
+    Array.isArray(layoutValue) || (layoutValue && typeof layoutValue === "object")
+      ? layoutValue
+      : typeof layoutValue === "string"
+        ? (() => {
+            try {
+              return JSON.parse(layoutValue);
+            } catch {
+              return [];
+            }
+          })()
+        : [];
+
+  const arrayLayout = Array.isArray(parsed) ? parsed : [];
+  const safeLayout = arrayLayout
+    .map((raw, idx) => {
+      if (!raw || typeof raw !== "object") return null;
+      const type = String(raw.type || "").trim();
+      if (!["text", "image", "shape", "arrow"].includes(type)) return null;
+
+      const normalized = {
+        id: String(raw.id || `${Date.now()}-${idx}`).trim(),
+        type,
+        x: toNumber(raw.x, 0),
+        y: toNumber(raw.y, 0),
+        width: Math.max(20, toNumber(raw.width, type === "text" ? 180 : 120)),
+        height: Math.max(20, toNumber(raw.height, type === "text" ? 40 : 80)),
+        rotation: toNumber(raw.rotation, 0),
+        fill: String(raw.fill || (type === "shape" ? "#93c5fd" : "#111827")),
+        stroke: String(raw.stroke || "#2563eb")
+      };
+
+      if (type === "text") {
+        normalized.text = String(raw.text || "Text");
+        normalized.fontSize = Math.max(10, toNumber(raw.fontSize, 24));
+        normalized.fontFamily = String(raw.fontFamily || "Sora");
+        normalized.align = ["left", "center", "right"].includes(String(raw.align || "")) ? String(raw.align) : "left";
+        normalized.verticalAlign = ["top", "middle", "bottom"].includes(String(raw.verticalAlign || ""))
+          ? String(raw.verticalAlign)
+          : "top";
+        normalized.lineHeight = Math.max(0.6, toNumber(raw.lineHeight, 1.2));
+        normalized.letterSpacing = toNumber(raw.letterSpacing, 0);
+        normalized.padding = Math.max(0, toNumber(raw.padding, 0));
+      }
+
+      if (type === "image") {
+        const src = String(raw.src || "").trim();
+        if (!src) return null;
+        normalized.src = src;
+      }
+
+      return normalized;
+    })
+    .filter(Boolean);
+
+  if (Buffer.byteLength(JSON.stringify(safeLayout), "utf8") > MAX_LAYOUT_BYTES) {
+    return [];
+  }
+
+  return safeLayout;
+};
+
+const normalizeAuthoredQuiz = (payload = {}) => {
+  const type = String(payload.type || "mcq").toLowerCase() === "fill_blank" ? "fill_blank" : "mcq";
+  const options = Array.isArray(payload.options)
+    ? payload.options.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+
+  const dedupedOptions = [...new Set(options)].slice(0, 4);
+  const prompt = String(payload.prompt || "").trim();
+  const answer = String(payload.answer || "").trim();
+  const enabled = Boolean(payload.enabled);
+
+  return {
+    enabled,
+    type,
+    prompt,
+    options: type === "mcq" ? dedupedOptions : [],
+    answer
+  };
+};
+
+const normalizeCardInput = (card, domainId, createdBy) => {
+  const keyPointsInput = card.keyPoints || card.key_points;
+  const keyPoints = Array.isArray(keyPointsInput)
+    ? keyPointsInput.map((point) => String(point || "").trim()).filter(Boolean)
+    : String(keyPointsInput || "")
+        .split(/\r?\n|;/)
+        .map((point) => point.trim())
+        .filter(Boolean);
+
+  const conceptTitle = String(card.concept_title || card.topic || card.chapterName || "Core Concept").trim();
+  const chapterName = String(card.chapterName || card.chapter || conceptTitle).trim();
+  const definition = String(card.definition || keyPoints[0] || card.answer || "").trim();
+  const shortExplanation = String(card.short_explanation || card.back || "").trim();
+  const answer = String(card.answer || definition || keyPoints[0] || conceptTitle || "Core Concept").trim();
+  const normalizedTopic = conceptTitle || "Core Concept";
+  const normalizedChapter = chapterName || normalizedTopic;
+
+  return {
+    domainId,
+    subject: String(card.subject || "").trim(),
+    chapter: normalizedChapter,
+    concept_title: normalizedTopic,
+    definition,
+    key_points: keyPoints,
+    short_explanation: shortExplanation,
+    diagram: String(card.diagram || card.diagramText || "").trim(),
+    memory_trick: "",
+    layout_json: normalizeLayoutJson(card.layout_json),
+    topic: normalizedTopic,
+    chapterName: normalizedChapter,
+    keyPoints,
+    diagramText: String(card.diagramText || card.diagram || "").trim(),
+    diagramUrl: String(card.diagramUrl || "").trim(),
+    front: "",
+    back: "",
+    mcqOptions: Array.isArray(card.mcqOptions)
+      ? card.mcqOptions.map((option) => String(option || "").trim()).filter(Boolean).slice(0, 4)
+      : [],
+    answer,
+    authoredQuiz: normalizeAuthoredQuiz(card.authoredQuiz || {}),
+    visibility: "private",
+    createdBy
+  };
+};
+
+const domainVisibilityQuery = (user, domainId) =>
+  user?.role === "admin"
+    ? { domainId }
+    : {
+        domainId,
+        $or: [{ visibility: { $ne: "private" } }, { createdBy: user._id }]
+      };
+
+const learnerOwnedCardQuery = (user, cardId) =>
+  user?.role === "admin"
+    ? { _id: cardId }
+    : { _id: cardId, createdBy: user._id, visibility: "private" };
+
 const getOrCreateProgress = async (learnerId, domainId) => {
   let progress = await LearnerProgress.findOne({ learnerId, domainId });
   if (!progress) {
@@ -37,7 +185,14 @@ export const startDomainLearning = async (req, res, next) => {
 export const markFlashcardViewed = async (req, res, next) => {
   try {
     const { domainId, flashcardId, timeSpentSeconds } = req.body;
-    const total = await Flashcard.countDocuments({ domainId });
+    const visibleDomainQuery = domainVisibilityQuery(req.user, domainId);
+    const flashcard = await Flashcard.findOne({ _id: flashcardId, ...visibleDomainQuery }).select("_id");
+
+    if (!flashcard) {
+      return res.status(404).json({ message: "Flashcard not found for this domain" });
+    }
+
+    const total = await Flashcard.countDocuments(visibleDomainQuery);
 
     const progress = await getOrCreateProgress(req.user._id, domainId);
 
@@ -67,7 +222,8 @@ export const markFlashcardViewed = async (req, res, next) => {
   }
 };
 
-const pickPracticeFlashcards = async (progress, domainId, mode) => {
+const pickPracticeFlashcards = async (progress, domainId, mode, user) => {
+  const scopedDomainQuery = domainVisibilityQuery(user, domainId);
   const viewedSet = new Set(progress.viewedFlashcards.map((id) => id.toString()));
   const reviewedIds = progress.reviewStates.map((s) => s.flashcardId.toString());
   const dueReviewIds = progress.reviewStates
@@ -75,7 +231,7 @@ const pickPracticeFlashcards = async (progress, domainId, mode) => {
     .map((s) => s.flashcardId.toString());
 
   if (mode === "weak_topics" && progress.weakTopics.length) {
-    return Flashcard.find({ domainId, topic: { $in: progress.weakTopics } }).limit(15);
+    return Flashcard.find({ ...scopedDomainQuery, topic: { $in: progress.weakTopics } }).limit(15);
   }
 
   if (["practice_hard", "practice_medium", "practice_easy"].includes(mode)) {
@@ -84,14 +240,14 @@ const pickPracticeFlashcards = async (progress, domainId, mode) => {
       .filter((s) => s.difficultyBucket === bucket)
       .map((s) => s.flashcardId);
     if (bucketIds.length) {
-      return Flashcard.find({ _id: { $in: bucketIds } }).limit(15);
+      return Flashcard.find({ ...scopedDomainQuery, _id: { $in: bucketIds } }).limit(15);
     }
   }
 
   if (mode === "auto_10_percent") {
     const dueIds = dueReviewIds.filter((id) => viewedSet.has(id));
     const dueCards = dueIds.length
-      ? await Flashcard.find({ _id: { $in: dueIds }, domainId }).limit(15)
+      ? await Flashcard.find({ ...scopedDomainQuery, _id: { $in: dueIds } }).limit(15)
       : [];
 
     if (dueCards.length >= 10) {
@@ -101,7 +257,7 @@ const pickPracticeFlashcards = async (progress, domainId, mode) => {
     const remainingSlots = 15 - dueCards.length;
     const viewedOnlyIds = [...viewedSet].filter((id) => !dueIds.includes(id));
     if (viewedOnlyIds.length) {
-      const viewedCards = await Flashcard.find({ _id: { $in: viewedOnlyIds }, domainId }).limit(remainingSlots);
+      const viewedCards = await Flashcard.find({ ...scopedDomainQuery, _id: { $in: viewedOnlyIds } }).limit(remainingSlots);
       return [...dueCards, ...viewedCards].slice(0, 15);
     }
 
@@ -110,10 +266,10 @@ const pickPracticeFlashcards = async (progress, domainId, mode) => {
 
   const fallbackIds = reviewedIds.length ? reviewedIds : [...viewedSet];
   if (fallbackIds.length) {
-    return Flashcard.find({ _id: { $in: fallbackIds } }).limit(15);
+    return Flashcard.find({ ...scopedDomainQuery, _id: { $in: fallbackIds } }).limit(15);
   }
 
-  return Flashcard.find({ domainId }).limit(15);
+  return Flashcard.find(scopedDomainQuery).limit(15);
 };
 
 export const generateQuiz = async (req, res, next) => {
@@ -121,7 +277,7 @@ export const generateQuiz = async (req, res, next) => {
     const { domainId, source = "auto_10_percent" } = req.body;
     const progress = await getOrCreateProgress(req.user._id, domainId);
 
-    const cards = await pickPracticeFlashcards(progress, domainId, source);
+    const cards = await pickPracticeFlashcards(progress, domainId, source, req.user);
     const questions = cards.map((card, idx) => buildQuestionFromFlashcard(card, idx));
 
     return res.json({
@@ -276,6 +432,197 @@ export const getStreakCalendar = async (req, res, next) => {
       streakCount: currentStreak,
       longestStreak
     });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const listMyConceptCardsByDomain = async (req, res, next) => {
+  try {
+    const { domainId } = req.params;
+    const domain = await Domain.findById(domainId).select("name");
+    if (!domain) {
+      return res.status(404).json({ message: "Domain not found" });
+    }
+
+    const cards = await Flashcard.find({ domainId, createdBy: req.user._id, visibility: "private" }).sort({ createdAt: -1 });
+
+    return res.json({
+      domain: { id: domain._id, name: domain.name },
+      cards
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const saveMyConceptCardsByDomain = async (req, res, next) => {
+  try {
+    const { domainId } = req.params;
+    const { cards = [], overwrite = false } = req.body;
+
+    if (!Array.isArray(cards) || !cards.length) {
+      return res.status(400).json({ message: "cards array is required" });
+    }
+
+    const domain = await Domain.findById(domainId).select("name");
+    if (!domain) {
+      return res.status(404).json({ message: "Domain not found" });
+    }
+
+    const normalizedEntries = cards
+      .map((card) => ({
+        input: card,
+        normalized: normalizeCardInput(card, domainId, req.user._id)
+      }))
+      .filter((entry) => entry.normalized.answer && entry.normalized.topic);
+
+    if (!normalizedEntries.length) {
+      return res.status(400).json({ message: "No valid cards to save. Add concept title or definition." });
+    }
+
+    const overwriteRequested = String(overwrite) === "true" || overwrite === true;
+    const shouldOverwrite = overwriteRequested && normalizedEntries.length > 1;
+
+    if (shouldOverwrite) {
+      await Flashcard.deleteMany({
+        domainId,
+        createdBy: req.user._id,
+        visibility: "private"
+      });
+    }
+
+    const updates = [];
+    const creates = [];
+
+    normalizedEntries.forEach((entry) => {
+      const hasId = Boolean(entry.input && entry.input._id);
+      if (hasId) {
+        updates.push({ id: entry.input._id, payload: entry.normalized });
+      } else {
+        creates.push(entry.normalized);
+      }
+    });
+
+    let inserted = 0;
+    if (creates.length) {
+      const docs = await Flashcard.insertMany(creates);
+      inserted += docs.length;
+    }
+
+    let updated = 0;
+    for (const item of updates) {
+      const updatedDoc = await Flashcard.findOneAndUpdate(
+        { _id: item.id, domainId, createdBy: req.user._id, visibility: "private" },
+        item.payload,
+        { new: true, runValidators: true }
+      ).select("_id");
+
+      if (updatedDoc) {
+        updated += 1;
+      }
+    }
+
+    return res.status(201).json({
+      message: "My concept cards saved",
+      domain: { id: domain._id, name: domain.name },
+      inserted,
+      updated,
+      overwriteApplied: shouldOverwrite,
+      overwriteSkippedSingleCard: overwriteRequested && !shouldOverwrite
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const deleteMyConceptCard = async (req, res, next) => {
+  try {
+    const { cardId } = req.params;
+    const deleted = await Flashcard.findOneAndDelete(learnerOwnedCardQuery(req.user, cardId)).select("_id");
+
+    if (!deleted) {
+      return res.status(404).json({ message: "Concept card not found" });
+    }
+
+    return res.json({ message: "Concept card deleted" });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const listMyConceptCardQuizByDomain = async (req, res, next) => {
+  try {
+    const { domainId } = req.params;
+
+    const domain = await Domain.findById(domainId).select("name");
+    if (!domain) {
+      return res.status(404).json({ message: "Domain not found" });
+    }
+
+    const cards = await Flashcard.find({ domainId, createdBy: req.user._id, visibility: "private" })
+      .select("concept_title topic chapterName authoredQuiz answer mcqOptions")
+      .sort({ createdAt: 1 });
+
+    return res.json({
+      domain: { id: domain._id, name: domain.name },
+      cards: cards.map((card) => ({
+        _id: card._id,
+        concept_title: card.concept_title,
+        topic: card.topic,
+        chapterName: card.chapterName,
+        authoredQuiz: {
+          enabled: Boolean(card.authoredQuiz?.enabled),
+          type: card.authoredQuiz?.type || "mcq",
+          prompt: card.authoredQuiz?.prompt || "",
+          options: Array.isArray(card.authoredQuiz?.options) ? card.authoredQuiz.options : [],
+          answer: card.authoredQuiz?.answer || ""
+        },
+        fallback: {
+          answer: card.answer || "",
+          options: Array.isArray(card.mcqOptions) ? card.mcqOptions : []
+        }
+      }))
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const updateMyConceptCardQuiz = async (req, res, next) => {
+  try {
+    const { cardId } = req.params;
+    const authoredQuiz = normalizeAuthoredQuiz(req.body?.authoredQuiz || req.body || {});
+
+    if (authoredQuiz.enabled) {
+      if (!authoredQuiz.prompt || !authoredQuiz.answer) {
+        return res.status(400).json({ message: "Quiz prompt and answer are required when enabled." });
+      }
+
+      if (authoredQuiz.type === "mcq") {
+        if (authoredQuiz.options.length !== 4) {
+          return res.status(400).json({ message: "MCQ requires exactly 4 unique options." });
+        }
+        const hasAnswerInOptions = authoredQuiz.options.some(
+          (option) => option.toLowerCase() === authoredQuiz.answer.toLowerCase()
+        );
+        if (!hasAnswerInOptions) {
+          return res.status(400).json({ message: "Correct answer must match one option." });
+        }
+      }
+    }
+
+    const card = await Flashcard.findOneAndUpdate(
+      learnerOwnedCardQuery(req.user, cardId),
+      { authoredQuiz },
+      { new: true, runValidators: true }
+    ).select("_id concept_title topic authoredQuiz");
+
+    if (!card) {
+      return res.status(404).json({ message: "Concept card not found" });
+    }
+
+    return res.json({ message: "Quiz configuration saved", card });
   } catch (error) {
     return next(error);
   }
