@@ -6,7 +6,7 @@ const SWIPE_THRESHOLD = 120;
 
 const CenteredFlashcard = ({ card, flipped, onFlip, cardIndex, totalCards, onTouchStart, onTouchEnd, onSwipe }) => {
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-180, 0, 180], [-8, 0, 8]);
+  const rotateZ = useTransform(x, [-180, 0, 180], [-8, 0, 8]);
   const suppressClickRef = useRef(false);
 
   if (!card) {
@@ -42,7 +42,9 @@ const CenteredFlashcard = ({ card, flipped, onFlip, cardIndex, totalCards, onTou
           drag="x"
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.18}
-          style={{ x, rotate }}
+          style={{ x, rotateZ }}
+          animate={{ rotateY: flipped ? 180 : 0 }}
+          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
           whileTap={{ scale: 0.995 }}
           onDragEnd={(_event, info) => {
             if (Math.abs(info.offset.x) < SWIPE_THRESHOLD) {
@@ -65,9 +67,7 @@ const CenteredFlashcard = ({ card, flipped, onFlip, cardIndex, totalCards, onTou
           }}
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
-          className={`flip-card-inner relative h-[460px] w-full cursor-grab overflow-hidden rounded-[2rem] border border-white/60 bg-gradient-to-br from-cyan-100/70 via-white to-blue-100/70 p-8 text-left shadow-[0_28px_80px_rgba(17,88,162,0.18)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_36px_90px_rgba(17,88,162,0.24)] active:cursor-grabbing dark:border-slate-700 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800 ${
-            flipped ? "flipped" : ""
-          }`}
+          className="flip-card-inner relative h-[460px] w-full cursor-grab overflow-hidden rounded-[2rem] border border-white/60 bg-gradient-to-br from-cyan-100/70 via-white to-blue-100/70 p-8 text-left shadow-[0_28px_80px_rgba(17,88,162,0.18)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_36px_90px_rgba(17,88,162,0.24)] active:cursor-grabbing dark:border-slate-700 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800"
         >
           <div className="flip-face absolute inset-0 overflow-y-auto p-8 md:p-10">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Front Side</p>
