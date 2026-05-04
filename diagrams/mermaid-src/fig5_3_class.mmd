@@ -1,0 +1,61 @@
+classDiagram
+    class User {
+        +string name
+        +string email
+        +string password
+        +string role
+        +number points
+    }
+
+    class Domain {
+        +string category
+        +string name
+        +string description
+        +number popularityScore
+    }
+
+    class Flashcard {
+        +ObjectId domainId
+        +string concept_title
+        +string definition
+        +string[] key_points
+        +string[] mcqOptions
+        +string answer
+        +string visibility
+    }
+
+    class LearnerProgress {
+        +ObjectId learnerId
+        +ObjectId domainId
+        +number progressPercent
+        +number quizzesTaken
+        +string[] weakTopics
+    }
+
+    class QuizAttempt {
+        +ObjectId learnerId
+        +ObjectId domainId
+        +number score
+        +number accuracy
+        +string source
+    }
+
+    class DailyActivity {
+        +ObjectId learnerId
+        +string dateKey
+        +number questionsSolved
+    }
+
+    class LeaderboardSnapshot {
+        +string period
+        +string key
+        +Object[] entries
+    }
+
+    User "1" --> "many" Flashcard : createdBy
+    Domain "1" --> "many" Flashcard : contains
+    User "1" --> "many" LearnerProgress : tracks
+    Domain "1" --> "many" LearnerProgress : scope
+    User "1" --> "many" QuizAttempt : attempts
+    Domain "1" --> "many" QuizAttempt : from
+    User "1" --> "many" DailyActivity : logs

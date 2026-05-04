@@ -185,6 +185,8 @@ export const startDomainLearning = async (req, res, next) => {
 export const markFlashcardViewed = async (req, res, next) => {
   try {
     const { domainId, flashcardId, timeSpentSeconds } = req.body;
+    const domain = await Domain.findById(domainId).select("name");
+    if (!domain) return res.status(404).json({ message: "Domain not found" });
     const visibleDomainQuery = domainVisibilityQuery(req.user, domainId);
     const flashcard = await Flashcard.findOne({ _id: flashcardId, ...visibleDomainQuery }).select("_id");
 
@@ -203,10 +205,12 @@ export const markFlashcardViewed = async (req, res, next) => {
     progress.timeSpentSeconds += Number(timeSpentSeconds || 0);
     progress.progressPercent = total > 0 ? Math.round((progress.viewedFlashcards.length / total) * 100) : 0;
 
+    const isOperatingSystems = String(domain.name || "").toLowerCase() === "operating systems";
     const milestonesReached = Math.floor(progress.progressPercent / 10);
-    const hasNewMilestone = milestonesReached > progress.lastQuizMilestone;
+    const hitsFirstTenPercent = progress.progressPercent >= 10 && progress.lastQuizMilestone < 1;
+    const hasNewMilestone = isOperatingSystems ? hitsFirstTenPercent : milestonesReached > progress.lastQuizMilestone;
     if (hasNewMilestone) {
-      progress.lastQuizMilestone = milestonesReached;
+      progress.lastQuizMilestone = isOperatingSystems ? 1 : milestonesReached;
     }
 
     await progress.save();

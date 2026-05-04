@@ -1,0 +1,33 @@
+flowchart LR
+    E1[External Entity: Learner]
+    E2[External Entity: Admin]
+
+    P0((Process P0\nQuizflip Learning System))
+
+    D1[(D1 User Data Store)]
+    D2[(D2 Domain Data Store)]
+    D3[(D3 Flashcard Data Store)]
+    D4[(D4 Progress Data Store)]
+    D5[(D5 Quiz Attempt Store)]
+    D6[(D6 Activity Store)]
+    D7[(D7 Leaderboard Store)]
+
+    E1 -->|Login Data| P0
+    E1 -->|Quiz Response| P0
+    E1 -->|Study Request| P0
+
+    E2 -->|Admin Login Data| P0
+    E2 -->|Domain/Card Management Data| P0
+
+    P0 -->|Authentication Result| E1
+    P0 -->|Quiz Questions| E1
+    P0 -->|Score Output| E1
+    P0 -->|Admin Dashboard Output| E2
+
+    P0 <--> |User Credentials/Profile| D1
+    P0 <--> |Domain Records| D2
+    P0 <--> |Flashcard Content| D3
+    P0 <--> |Learner Progress| D4
+    P0 <--> |Quiz Attempts| D5
+    P0 <--> |Daily Activity| D6
+    P0 <--> |Leaderboard Snapshots| D7

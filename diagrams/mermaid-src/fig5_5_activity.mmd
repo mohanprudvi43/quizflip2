@@ -1,0 +1,16 @@
+flowchart TD
+    S([Start Session]) --> A[Login]
+    A --> B{Credentials Valid?}
+    B -- No --> E1[Show Login Error]
+    E1 --> A
+    B -- Yes --> C[Select Domain]
+    C --> D[Load Flashcards]
+    D --> E[View or Flip Card]
+    E --> F[Update Progress and Time Spent]
+    F --> G{Milestone Reached?}
+    G -- No --> E
+    G -- Yes --> H[Show Quiz Prompt]
+    H --> I{Start Quiz Now?}
+    I -- No --> E
+    I -- Yes --> J[Start Quiz]
+    J --> K([End Session])

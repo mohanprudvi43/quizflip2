@@ -1,0 +1,41 @@
+flowchart TB
+    LEARNER[Actor: Learner]
+    ADMIN[Actor: Admin]
+
+    subgraph SYS[Quizflip System Boundary]
+        direction TB
+        subgraph LSET[Learner Use Cases]
+            direction LR
+            UC1((Login / Register))
+            UC2((Select Domain))
+            UC3((Study Flashcards))
+            UC4((Take Adaptive Quiz))
+            UC5((View Score and Progress))
+            UC6((View Streak and Leaderboard))
+            UC7((Create Personal Concept Cards))
+        end
+
+        subgraph ASET[Admin Use Cases]
+            direction LR
+            UC8((Manage Domains))
+            UC9((Generate Cards from PDF or Text))
+            UC10((Edit and Save Cards))
+            UC11((Configure Quiz per Card))
+            UC12((View Admin Analytics))
+        end
+    end
+
+    LEARNER --> UC1
+    LEARNER --> UC2
+    LEARNER --> UC3
+    LEARNER --> UC4
+    LEARNER --> UC5
+    LEARNER --> UC6
+    LEARNER --> UC7
+
+    ADMIN --> UC1
+    ADMIN --> UC8
+    ADMIN --> UC9
+    ADMIN --> UC10
+    ADMIN --> UC11
+    ADMIN --> UC12

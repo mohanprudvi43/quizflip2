@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant UI as Learner UI
+    participant API as Express API
+    participant CTRL as Learner Controller
+    participant ENG as Adaptive Engine
+    participant DB as MongoDB
+
+    UI->>API: POST /learner/quiz/generate
+    API->>CTRL: forward request
+    CTRL->>DB: fetch progress and cards
+    CTRL->>ENG: build adaptive question set
+    ENG-->>CTRL: questions
+    CTRL-->>UI: quiz payload
+
+    UI->>API: POST /learner/quiz/submit
+    API->>CTRL: forward answers
+    CTRL->>ENG: evaluate + schedule updates
+    ENG->>DB: store attempt, progress, activity
+    CTRL-->>UI: score, accuracy, weak topics

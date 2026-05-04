@@ -5,7 +5,7 @@ export const DEFAULT_DOMAINS = [
   },
   {
     category: "Technical Skills",
-    domains: ["Java", "C++", "SQL"]
+    domains: ["Java", "C++", "SQL", "Operating Systems"]
   },
   {
     category: "Language",

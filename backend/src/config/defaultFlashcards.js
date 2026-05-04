@@ -212,5 +212,231 @@ export const DEFAULT_FLASHCARDS_BY_DOMAIN = {
         "A punctuation mark"
       ]
     }
+  ],
+  "Operating Systems": [
+    {
+      topic: "Operating System Role",
+      chapterName: "OS Basics",
+      keyPoints: [
+        "The OS manages CPU, memory, storage, and devices.",
+        "It provides services and interfaces for programs.",
+        "It schedules resources to keep the system responsive."
+      ],
+      answer: "The OS manages hardware resources and provides services to programs",
+      mcqOptions: [
+        "The OS manages hardware resources and provides services to programs",
+        "The OS compiles source code into binaries",
+        "The OS designs CPU circuits",
+        "The OS stores web pages"
+      ]
+    },
+    {
+      topic: "Kernel vs User Mode",
+      chapterName: "OS Basics",
+      keyPoints: [
+        "Kernel mode can execute privileged instructions.",
+        "User mode is restricted for safety.",
+        "System calls switch into kernel mode."
+      ],
+      answer: "Kernel mode allows privileged instructions while user mode is restricted",
+      mcqOptions: [
+        "Kernel mode allows privileged instructions while user mode is restricted",
+        "User mode has more hardware access",
+        "Kernel mode disables system calls",
+        "User mode can modify device firmware"
+      ]
+    },
+    {
+      topic: "Process vs Thread",
+      chapterName: "Processes",
+      keyPoints: [
+        "A process is a running program instance.",
+        "Threads share a process address space.",
+        "Threads reduce context switch overhead."
+      ],
+      answer: "Threads share a process address space",
+      mcqOptions: [
+        "Threads share a process address space",
+        "Threads always run on different machines",
+        "Processes cannot be scheduled",
+        "Threads contain their own kernels"
+      ]
+    },
+    {
+      topic: "CPU Scheduling",
+      chapterName: "Scheduling",
+      keyPoints: [
+        "Scheduling chooses which ready process runs next.",
+        "Round Robin improves responsiveness for time-sharing.",
+        "SJF minimizes average waiting time."
+      ],
+      answer: "Round Robin",
+      mcqOptions: [
+        "Round Robin",
+        "Shortest Job First",
+        "First Come First Served",
+        "Priority Inversion"
+      ]
+    },
+    {
+      topic: "Context Switching",
+      chapterName: "Scheduling",
+      keyPoints: [
+        "CPU state is saved and restored between processes.",
+        "Switching enables multitasking.",
+        "Excessive switching adds overhead."
+      ],
+      answer: "Context switching",
+      mcqOptions: [
+        "Context switching",
+        "Demand paging",
+        "Cache coherence",
+        "I/O polling"
+      ]
+    },
+    {
+      topic: "Critical Section and Mutex",
+      chapterName: "Synchronization",
+      keyPoints: [
+        "A critical section must be executed by one thread at a time.",
+        "A mutex enforces mutual exclusion.",
+        "Locks prevent race conditions."
+      ],
+      answer: "Ensure only one thread enters a critical section",
+      mcqOptions: [
+        "Ensure only one thread enters a critical section",
+        "Speed up disk I/O",
+        "Allocate extra memory",
+        "Create new processes"
+      ]
+    },
+    {
+      topic: "Semaphores",
+      chapterName: "Synchronization",
+      keyPoints: [
+        "Semaphores coordinate access to shared resources.",
+        "Counting semaphores allow multiple permits.",
+        "Binary semaphores act like locks."
+      ],
+      answer: "Limiting access to a pool of N printers",
+      mcqOptions: [
+        "Limiting access to a pool of N printers",
+        "Encrypting data",
+        "Compiling code",
+        "Sorting arrays"
+      ]
+    },
+    {
+      topic: "Deadlocks",
+      chapterName: "Concurrency",
+      keyPoints: [
+        "Deadlock happens when processes wait forever.",
+        "Circular wait is one necessary condition.",
+        "Prevention breaks at least one condition."
+      ],
+      answer: "Circular wait",
+      mcqOptions: [
+        "Circular wait",
+        "Preemptive scheduling",
+        "Cache hits",
+        "Kernel mode"
+      ]
+    },
+    {
+      topic: "Memory Management",
+      chapterName: "Memory",
+      keyPoints: [
+        "Paging splits memory into fixed-size pages.",
+        "Page tables map virtual to physical addresses.",
+        "Paging reduces external fragmentation."
+      ],
+      answer: "Reduce external fragmentation",
+      mcqOptions: [
+        "Reduce external fragmentation",
+        "Eliminate caches",
+        "Increase CPU clock speed",
+        "Disable virtual memory"
+      ]
+    },
+    {
+      topic: "Virtual Memory",
+      chapterName: "Memory",
+      keyPoints: [
+        "Virtual memory extends RAM using disk.",
+        "A page fault triggers a disk read.",
+        "Replacement policies include LRU and FIFO."
+      ],
+      answer: "The OS loads the missing page from disk",
+      mcqOptions: [
+        "The OS loads the missing page from disk",
+        "The CPU stops permanently",
+        "The program skips the instruction",
+        "The disk wipes RAM"
+      ]
+    },
+    {
+      topic: "File Systems",
+      chapterName: "Storage",
+      keyPoints: [
+        "File systems organize data into files and directories.",
+        "Inodes store metadata and block pointers.",
+        "Permissions control access to files."
+      ],
+      answer: "File metadata and block pointers",
+      mcqOptions: [
+        "File metadata and block pointers",
+        "Only file contents",
+        "Network addresses",
+        "CPU registers"
+      ]
+    },
+    {
+      topic: "I/O and Device Drivers",
+      chapterName: "Devices",
+      keyPoints: [
+        "Drivers translate OS requests to device commands.",
+        "Interrupts signal I/O completion.",
+        "Buffering smooths speed differences."
+      ],
+      answer: "To provide a uniform interface to hardware",
+      mcqOptions: [
+        "To provide a uniform interface to hardware",
+        "To create user accounts",
+        "To compile kernels",
+        "To format RAM"
+      ]
+    },
+    {
+      topic: "System Calls",
+      chapterName: "Interfaces",
+      keyPoints: [
+        "System calls are the API for OS services.",
+        "They trigger a mode switch into the kernel.",
+        "Examples include open, read, fork, and exec."
+      ],
+      answer: "open",
+      mcqOptions: [
+        "open",
+        "printf",
+        "malloc",
+        "strlen"
+      ]
+    },
+    {
+      topic: "Protection and Security",
+      chapterName: "Security",
+      keyPoints: [
+        "Access control restricts resource usage.",
+        "Authentication verifies identity.",
+        "Sandboxing limits damage from failures."
+      ],
+      answer: "Restrict who can use a resource",
+      mcqOptions: [
+        "Restrict who can use a resource",
+        "Increase clock speed",
+        "Reduce file sizes",
+        "Allocate more CPU cores"
+      ]
+    }
   ]
 };

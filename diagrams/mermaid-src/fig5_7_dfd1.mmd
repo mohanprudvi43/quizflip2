@@ -1,0 +1,51 @@
+flowchart TB
+    L[External Entity: Learner]
+    A[External Entity: Admin]
+
+    P1((P1 Authenticate User))
+    P2((P2 Manage Domains and Flashcards))
+    P3((P3 Track Learning Activity))
+    P4((P4 Generate and Evaluate Quiz))
+    P5((P5 Update Progress and Weak Topics))
+    P6((P6 Produce Leaderboard and Analytics))
+
+    D1[(D1 Users)]
+    D2[(D2 Domains)]
+    D3[(D3 Flashcards)]
+    D4[(D4 Learner Progress)]
+    D5[(D5 Quiz Attempts)]
+    D6[(D6 Daily Activity)]
+    D7[(D7 Leaderboard)]
+
+    L -->|Login Data| P1
+    A -->|Admin Login Data| P1
+    P1 <--> |Credential Verification| D1
+    P1 -->|Token / Auth Status| L
+    P1 -->|Token / Auth Status| A
+
+    A -->|Domain/Card CRUD Data| P2
+    P2 <--> |Domain Records| D2
+    P2 <--> |Flashcard Records| D3
+    P2 -->|Management Confirmation| A
+
+    L -->|Flashcard View Events| P3
+    P3 <--> |Progress State| D4
+    P3 <--> |Activity Logs| D6
+    P3 -->|Updated Learning Progress| L
+
+    L -->|Quiz Request / Quiz Response| P4
+    P4 <--> |Question Source| D3
+    P4 <--> |Attempt Records| D5
+    P4 -->|Quiz Questions| L
+    P4 -->|Evaluation Results| P5
+
+    P5 <--> |Review Schedule + Weak Topics| D4
+    P5 <--> |Updated Activity| D6
+    P5 -->|Score Output| L
+
+    L -->|Leaderboard Request| P6
+    A -->|Dashboard Request| P6
+    P6 <--> |Attempts Aggregate| D5
+    P6 <--> |Leaderboard Snapshot| D7
+    P6 -->|Leaderboard Output| L
+    P6 -->|Analytics Output| A

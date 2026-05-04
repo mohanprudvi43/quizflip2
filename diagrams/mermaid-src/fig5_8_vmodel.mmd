@@ -1,0 +1,14 @@
+flowchart TD
+    R[Requirements] --> HLD[High Level Design]
+    HLD --> LLD[Low Level Design]
+    LLD --> C[Coding]
+
+    C --> UT[Unit Testing]
+    UT --> IT[Integration Testing]
+    IT --> ST[System Testing]
+    ST --> AT[Acceptance Testing]
+
+    R -. mapped to .-> AT
+    HLD -. mapped to .-> ST
+    LLD -. mapped to .-> IT
+    C -. mapped to .-> UT

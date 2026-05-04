@@ -1,0 +1,31 @@
+erDiagram
+    USER {
+        ObjectId user_id PK
+        string name
+        string email
+        string role
+        number points
+    }
+
+    QUIZ {
+        ObjectId quiz_id PK
+        string source
+        number score
+        number totalQuestions
+        number accuracy
+        datetime attemptedAt
+    }
+
+    QUESTION {
+        ObjectId question_id PK
+        string questionType
+        string prompt
+        string userAnswer
+        string correctAnswer
+        boolean isCorrect
+        string confidence
+        string topic
+    }
+
+    USER ||--o{ QUIZ : attempts
+    QUIZ ||--|{ QUESTION : contains

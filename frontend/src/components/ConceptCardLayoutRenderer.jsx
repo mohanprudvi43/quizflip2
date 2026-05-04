@@ -17,6 +17,65 @@ const toNumber = (value, fallback) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
+const normalizeHex = (value) => {
+  const color = String(value || "").trim();
+  const match = color.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (!match) return null;
+
+  const raw = match[1];
+  if (raw.length === 3) {
+    return `#${raw
+      .split("")
+      .map((part) => part + part)
+      .join("")}`;
+  }
+
+  return `#${raw}`;
+};
+
+const toRgb = (hex) => {
+  const normalized = normalizeHex(hex);
+  if (!normalized) return null;
+  return {
+    r: Number.parseInt(normalized.slice(1, 3), 16),
+    g: Number.parseInt(normalized.slice(3, 5), 16),
+    b: Number.parseInt(normalized.slice(5, 7), 16)
+  };
+};
+
+const channelToLinear = (channel) => {
+  const v = channel / 255;
+  return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+};
+
+const getLuminance = (hex) => {
+  const rgb = toRgb(hex);
+  if (!rgb) return null;
+  return 0.2126 * channelToLinear(rgb.r) + 0.7152 * channelToLinear(rgb.g) + 0.0722 * channelToLinear(rgb.b);
+};
+
+const getContrastRatio = (a, b) => {
+  const la = getLuminance(a);
+  const lb = getLuminance(b);
+  if (la == null || lb == null) return 1;
+
+  const bright = Math.max(la, lb);
+  const dark = Math.min(la, lb);
+  return (bright + 0.05) / (dark + 0.05);
+};
+
+const ensureTextContrast = (textColor, backgroundColor = "#ffffff") => {
+  const color = normalizeHex(textColor);
+  if (!color) return "#0f172a";
+  return getContrastRatio(color, backgroundColor) >= 4.5 ? color : "#0f172a";
+};
+
+const ensureStrokeContrast = (strokeColor, fillColor) => {
+  const stroke = normalizeHex(strokeColor) || "#1e293b";
+  const fill = normalizeHex(fillColor) || "#ffffff";
+  return getContrastRatio(stroke, fill) >= 2.2 ? stroke : "#1e293b";
+};
+
 const normalizeElement = (element, idx) => {
   if (!element || typeof element !== "object") return null;
   const type = String(element.type || "").trim();
@@ -81,7 +140,9 @@ const ConceptCardLayoutRenderer = ({ layoutJson, className = "" }) => {
   }
 
   return (
-    <div className={`relative h-full min-h-[260px] w-full overflow-hidden rounded-2xl border border-white/60 bg-white/65 dark:border-slate-700 dark:bg-slate-900/40 ${className}`}>
+    <div
+      className={`relative h-full min-h-[260px] w-full overflow-hidden rounded-2xl border border-slate-300/85 bg-white/95 shadow-[0_12px_28px_rgba(15,23,42,0.12)] dark:border-slate-200/65 dark:bg-white/95 ${className}`}
+    >
       {elements.map((element) => {
         const commonStyle = {
           position: "absolute",
@@ -93,6 +154,7 @@ const ConceptCardLayoutRenderer = ({ layoutJson, className = "" }) => {
         };
 
         if (element.type === "text") {
+          const textColor = ensureTextContrast(element.fill || "#0f172a", "#ffffff");
           const justifyContent =
             element.verticalAlign === "middle"
               ? "center"
@@ -104,7 +166,7 @@ const ConceptCardLayoutRenderer = ({ layoutJson, className = "" }) => {
               key={element.id}
               style={{
                 ...commonStyle,
-                color: element.fill || "#0f172a",
+                color: textColor,
                 fontSize: toNumber(element.fontSize, 24),
                 fontFamily: element.fontFamily || "Sora",
                 fontWeight: 700,
@@ -115,6 +177,7 @@ const ConceptCardLayoutRenderer = ({ layoutJson, className = "" }) => {
                 display: "flex",
                 flexDirection: "column",
                 justifyContent,
+                textShadow: "0 1px 1px rgba(255,255,255,0.9), 0 0 1.2px rgba(15,23,42,0.45)",
                 whiteSpace: "pre-wrap",
                 boxSizing: "border-box"
               }}
@@ -126,12 +189,22 @@ const ConceptCardLayoutRenderer = ({ layoutJson, className = "" }) => {
 
         if (element.type === "image") {
           return (
-            <img
+            <div
               key={element.id}
-              src={element.src}
-              alt="card element"
-              style={{ ...commonStyle, objectFit: "cover", borderRadius: 12 }}
-            />
+              style={{
+                ...commonStyle,
+                overflow: "hidden",
+                borderRadius: 12,
+                border: "1px solid rgba(15, 23, 42, 0.2)",
+                background: "repeating-linear-gradient(45deg, #f8fafc 0 10px, #eef2f7 10px 20px)"
+              }}
+            >
+              <img
+                src={element.src}
+                alt="card element"
+                style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 12 }}
+              />
+            </div>
           );
         }
 
@@ -143,14 +216,18 @@ const ConceptCardLayoutRenderer = ({ layoutJson, className = "" }) => {
           );
         }
 
+        const shapeFill = normalizeHex(element.fill || "#60a5fa") || "#60a5fa";
+        const shapeStroke = ensureStrokeContrast(element.stroke || "#1d4ed8", shapeFill);
+
         return (
           <div
             key={element.id}
             style={{
               ...commonStyle,
               borderRadius: 14,
-              background: element.fill || "#60a5fa",
-              border: `2px solid ${element.stroke || "#1d4ed8"}`
+              background: shapeFill,
+              border: `2px solid ${shapeStroke}`,
+              boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.28)"
             }}
           />
         );

@@ -1,0 +1,29 @@
+flowchart LR
+    U[Learner / Admin]
+
+    subgraph FE[Frontend Layer]
+        UI[React UI\nVite + Tailwind]
+    end
+
+    subgraph BE[Backend Layer]
+        API[Express REST API]
+        BL[Business Logic\nAuth + Learner + Admin + Analytics]
+    end
+
+    subgraph DATA[Data Layer]
+        DB[(MongoDB Atlas)]
+    end
+
+    OPENAI[OpenAI API\nOptional Concept Generation]
+    HOST1[Vercel\nFrontend Hosting]
+    HOST2[Render\nBackend Hosting]
+
+    U -->|HTTPS Requests| UI
+    UI -->|JSON REST Calls| API
+    API -->|Route Handling| BL
+    BL -->|Create/Read/Update| DB
+    BL -->|AI Prompt/Response| OPENAI
+    API -->|JSON Responses| UI
+
+    HOST1 -. deploys .-> UI
+    HOST2 -. deploys .-> API
