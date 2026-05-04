@@ -71,7 +71,12 @@ const CenteredFlashcard = ({ card, flipped, onFlip, cardIndex, totalCards, onTou
         >
           <div
             className="flip-face absolute inset-0 overflow-y-auto p-8 md:p-10"
-            style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+            style={{
+              backfaceVisibility: "hidden",
+              WebkitBackfaceVisibility: "hidden",
+              opacity: flipped ? 0 : 1,
+              pointerEvents: flipped ? "none" : "auto"
+            }}
           >
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Front Side</p>
             <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-700 dark:text-slate-200">{definition}</p>
@@ -80,7 +85,12 @@ const CenteredFlashcard = ({ card, flipped, onFlip, cardIndex, totalCards, onTou
 
           <div
             className="flip-face back absolute inset-0 overflow-y-auto p-8 md:p-10"
-            style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+            style={{
+              backfaceVisibility: "hidden",
+              WebkitBackfaceVisibility: "hidden",
+              opacity: flipped ? 1 : 0,
+              pointerEvents: flipped ? "auto" : "none"
+            }}
           >
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Key Points + Explanation</p>
             <ul className="mt-4 list-disc space-y-2 pl-6 text-base text-slate-700 dark:text-slate-100 md:text-lg">
