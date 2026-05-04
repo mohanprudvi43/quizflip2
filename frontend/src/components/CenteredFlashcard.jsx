@@ -42,7 +42,7 @@ const CenteredFlashcard = ({ card, flipped, onFlip, cardIndex, totalCards, onTou
           drag="x"
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.18}
-          style={{ x, rotateZ }}
+          style={{ x, rotateZ, transformStyle: "preserve-3d" }}
           animate={{ rotateY: flipped ? 180 : 0 }}
           transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
           whileTap={{ scale: 0.995 }}
@@ -69,13 +69,19 @@ const CenteredFlashcard = ({ card, flipped, onFlip, cardIndex, totalCards, onTou
           onTouchEnd={onTouchEnd}
           className="flip-card-inner relative h-[460px] w-full cursor-grab overflow-hidden rounded-[2rem] border border-white/60 bg-gradient-to-br from-cyan-100/70 via-white to-blue-100/70 p-8 text-left shadow-[0_28px_80px_rgba(17,88,162,0.18)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_36px_90px_rgba(17,88,162,0.24)] active:cursor-grabbing dark:border-slate-700 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800"
         >
-          <div className="flip-face absolute inset-0 overflow-y-auto p-8 md:p-10">
+          <div
+            className="flip-face absolute inset-0 overflow-y-auto p-8 md:p-10"
+            style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+          >
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Front Side</p>
             <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-700 dark:text-slate-200">{definition}</p>
             {hasLayout ? <ConceptCardLayoutRenderer className="mt-4" layoutJson={card.layout_json} /> : null}
           </div>
 
-          <div className="flip-face back absolute inset-0 overflow-y-auto p-8 md:p-10">
+          <div
+            className="flip-face back absolute inset-0 overflow-y-auto p-8 md:p-10"
+            style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+          >
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Key Points + Explanation</p>
             <ul className="mt-4 list-disc space-y-2 pl-6 text-base text-slate-700 dark:text-slate-100 md:text-lg">
               {keyPoints.slice(0, 5).map((point, idx) => (
