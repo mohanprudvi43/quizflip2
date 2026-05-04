@@ -42,9 +42,7 @@ const CenteredFlashcard = ({ card, flipped, onFlip, cardIndex, totalCards, onTou
           drag="x"
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.18}
-          style={{ x, rotateZ, transformStyle: "preserve-3d" }}
-          animate={{ rotateY: flipped ? 180 : 0 }}
-          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+          style={{ x, rotateZ }}
           whileTap={{ scale: 0.995 }}
           onDragEnd={(_event, info) => {
             if (Math.abs(info.offset.x) < SWIPE_THRESHOLD) {
@@ -72,9 +70,9 @@ const CenteredFlashcard = ({ card, flipped, onFlip, cardIndex, totalCards, onTou
           <div
             className="flip-face absolute inset-0 overflow-y-auto p-8 md:p-10"
             style={{
-              backfaceVisibility: "hidden",
-              WebkitBackfaceVisibility: "hidden",
               opacity: flipped ? 0 : 1,
+              transform: flipped ? "translateY(8px)" : "translateY(0px)",
+              transition: "opacity 200ms ease, transform 200ms ease",
               pointerEvents: flipped ? "none" : "auto"
             }}
           >
@@ -86,9 +84,9 @@ const CenteredFlashcard = ({ card, flipped, onFlip, cardIndex, totalCards, onTou
           <div
             className="flip-face back absolute inset-0 overflow-y-auto p-8 md:p-10"
             style={{
-              backfaceVisibility: "hidden",
-              WebkitBackfaceVisibility: "hidden",
               opacity: flipped ? 1 : 0,
+              transform: flipped ? "translateY(0px)" : "translateY(8px)",
+              transition: "opacity 200ms ease, transform 200ms ease",
               pointerEvents: flipped ? "auto" : "none"
             }}
           >
